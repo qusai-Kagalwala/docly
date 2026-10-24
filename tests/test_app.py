@@ -56,6 +56,22 @@ def test_keyboard_interrupt_goes_to_default_hook(monkeypatch) -> None:
     assert calls == [KeyboardInterrupt]
 
 
+def test_ctrl_c_quits_app_cleanly(qapp, monkeypatch) -> None:
+    import signal
+
+    original = signal.getsignal(signal.SIGINT)
+    quit_calls: list[bool] = []
+    monkeypatch.setattr(qapp, "quit", lambda: quit_calls.append(True))
+    try:
+        timer = docly_app.install_ctrl_c_handler(qapp)
+        assert timer.isActive()
+        signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
+        assert quit_calls == [True]
+        timer.stop()
+    finally:
+        signal.signal(signal.SIGINT, original)
+
+
 @pytest.fixture(autouse=True)
 def _restore_logger_propagation():
     yield

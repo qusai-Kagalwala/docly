@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import signal
 import sys
 import threading
 from collections.abc import Callable
 from types import TracebackType
 
-from PySide6.QtCore import QMessageLogContext, Qt, QtMsgType, qInstallMessageHandler
+from PySide6.QtCore import QMessageLogContext, Qt, QtMsgType, QTimer, qInstallMessageHandler
 from PySide6.QtGui import QFont, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 
@@ -107,6 +108,23 @@ def _thread_exception_hook(args: threading.ExceptHookArgs) -> None:
     )
 
 
+def install_ctrl_c_handler(app: QApplication) -> QTimer:
+    """Make Ctrl+C in the terminal close Docly cleanly.
+
+    Qt's event loop runs in C++, so Python only notices Ctrl+C when some
+    Python code happens to run — often in the middle of a paint event, which
+    prints a scary ``KeyboardInterrupt`` traceback. Instead we catch the
+    signal ourselves and ask Qt to quit. The idle timer wakes Python a few
+    times a second so the signal is noticed promptly.
+    """
+    signal.signal(signal.SIGINT, lambda *_args: app.quit())
+    timer = QTimer(app)
+    timer.setInterval(250)
+    timer.timeout.connect(lambda: None)
+    timer.start()
+    return timer
+
+
 def load_and_log_presets() -> PresetLoadResult:
     """Load presets and record the outcome in the log.
 
@@ -148,6 +166,7 @@ def run(argv: list[str] | None = None) -> int:
     app.setStyle("Fusion")
     app.setFont(build_app_font())
     qInstallMessageHandler(_qt_message_handler)
+    install_ctrl_c_handler(app)
 
     # Install crash handling before building the UI, so even an error while
     # creating the window is logged and shown instead of vanishing.
