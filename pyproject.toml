@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docly"
+dynamic = ["version"]
+description = "Offline Windows utility that makes photos, signatures and PDFs upload-ready for Indian government, exam and admission portals."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Qusai Kagalwala" }]
+dependencies = [
+    "PySide6>=6.8,<7",
+    "Pillow>=10.3",
+    "opencv-python-headless>=4.9",
+    "pypdf>=4.2",
+    "pikepdf>=9.0",
+]
+
+[project.urls]
+Repository = "https://github.com/qusai-Kagalwala/docly"
+
+[tool.setuptools.dynamic]
+# Single source of truth for the version: docly/__init__.py
+version = { attr = "docly.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["docly*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+qt_api = "pyside6"
+addopts = "-ra"
