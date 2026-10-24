@@ -44,6 +44,7 @@ def _base_dir() -> Path:
 BASE_DIR = _base_dir()
 ASSETS_DIR = BASE_DIR / "assets"
 ICONS_DIR = ASSETS_DIR / "icons"
+BUNDLED_PRESETS_PATH = BASE_DIR / "docly" / "presets" / "presets.json"
 
 
 def app_data_dir() -> Path:
@@ -66,3 +67,12 @@ def log_dir() -> Path:
 def settings_path() -> Path:
     """Path of the INI file that stores user settings."""
     return app_data_dir() / "settings.ini"
+
+
+def user_presets_path() -> Path:
+    """Optional user presets file that adds to / replaces built-in presets.
+
+    It lives in AppData because the install folder is read-only, so users can
+    fix a spec the day a notification changes, without a new release.
+    """
+    return app_data_dir() / "presets.json"

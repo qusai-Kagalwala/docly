@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 
 from docly import config
 from docly.logger import current_log_file, get_logger, setup_logging
+from docly.presets import PresetLoadResult, default_presets
 from docly.ui.main_window import MainWindow
 from docly.ui.settings_store import SettingsStore
 from docly.ui.theme import ThemeManager
@@ -106,6 +107,27 @@ def _thread_exception_hook(args: threading.ExceptHookArgs) -> None:
     )
 
 
+def load_and_log_presets() -> PresetLoadResult:
+    """Load presets and record the outcome in the log.
+
+    Phase 4 hands the result to the Photo page; for now this proves the
+    presets load on a real machine.
+    """
+    result = default_presets()
+    skipped = result.skipped_count
+    from_user = sum(1 for p in result.presets if p.origin == "user")
+    log.info(
+        "Loaded %d presets (%d skipped, %d from user file)",
+        len(result.presets),
+        skipped,
+        from_user,
+    )
+    for issue in result.issues:
+        level = {"error": 30, "warning": 30, "info": 20}.get(issue.level, 30)
+        log.log(level, "Preset %s: %s", issue.level, issue)
+    return result
+
+
 def run(argv: list[str] | None = None) -> int:
     """Start Docly and return the process exit code."""
     log_path = setup_logging()
@@ -133,6 +155,7 @@ def run(argv: list[str] | None = None) -> int:
     sys.excepthook = make_exception_hook(lambda: holder.get("window"))
     threading.excepthook = _thread_exception_hook
 
+    load_and_log_presets()
     theme = ThemeManager(app, SettingsStore())
     window = MainWindow(theme)
     holder["window"] = window
