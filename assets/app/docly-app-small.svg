@@ -1,0 +1,6 @@
+<!-- Docly app icon, simplified for 16-24 px: bigger page, bolder tick. Original artwork, MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect x="0" y="0" width="256" height="256" rx="48" fill="#2F6FEB"/>
+  <path d="M62 24h86l50 50v146a14 14 0 0 1-14 14H62a14 14 0 0 1-14-14V38a14 14 0 0 1 14-14z" fill="#FFFFFF"/>
+  <path d="M84 150l32 32 58-60" fill="none" stroke="#2F6FEB" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

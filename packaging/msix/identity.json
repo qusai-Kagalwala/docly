@@ -1,0 +1,10 @@
+{
+  "_comment": "From Partner Center > Docly > Product management > Product identity. Must match exactly, or the Store rejects the upload.",
+  "name": "QusaiKagalwala.Docly",
+  "publisher": "CN=775C1D17-053C-4160-976D-B6782AF2C690",
+  "publisher_display_name": "Qusai Kagalwala",
+  "display_name": "Docly",
+  "description": "Make photos, signatures and PDFs upload-ready for exam, government, visa and admission portals. Works offline.",
+  "min_windows": "10.0.17763.0",
+  "max_tested_windows": "10.0.26100.0"
+}

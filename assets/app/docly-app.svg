@@ -1,0 +1,17 @@
+<!-- Docly app icon: a document with a tick on a blue tile. Original artwork, MIT. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A88F8"/>
+      <stop offset="1" stop-color="#1D4FC4"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EAF1FE"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#tile)"/>
+  <path d="M78 40h70l42 42v124a12 12 0 0 1-12 12H78a12 12 0 0 1-12-12V52a12 12 0 0 1 12-12z" fill="url(#paper)"/>
+  <path d="M148 40v30a12 12 0 0 0 12 12h30z" fill="#B9CFFA"/>
+  <path d="M96 150l24 24 44-46" fill="none" stroke="#2F6FEB" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -9,3 +9,6 @@ Docly_Output/
 .idea/
 *.log
 Output/
+build/
+dist/
+*.msix

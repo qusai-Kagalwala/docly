@@ -15,13 +15,15 @@ from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 from docly import config
 from docly.logger import current_log_file, get_logger, setup_logging
 from docly.presets import PresetLoadResult, default_presets
-from docly.ui.main_window import MainWindow
+from docly.ui.desktop import explorer_path
+from docly.ui.main_window import MainWindow, app_icon
 from docly.ui.settings_store import SettingsStore
 from docly.ui.theme import ThemeManager
 
 log = get_logger(__name__)
 qt_log = get_logger("qt")
 
+SELF_CHECK_FLAG = "--self-check"  # Docly.exe --self-check: test the build, then exit
 FONT_FAMILIES = ["Segoe UI Variable Text", "Segoe UI"]
 BASE_FONT_PX = 13
 
@@ -85,7 +87,7 @@ def make_exception_hook(
         showing = True
         try:
             log_file = current_log_file()
-            where = f"\n\nDetails were saved to:\n{log_file}" if log_file else ""
+            where = f"\n\nDetails were saved to:\n{explorer_path(log_file)}" if log_file else ""
             QMessageBox.critical(
                 parent_getter(),
                 f"{config.APP_NAME} — something went wrong",
@@ -173,6 +175,13 @@ def run(argv: list[str] | None = None) -> int:
     sys.excepthook = make_exception_hook(lambda: holder.get("window"))
     threading.excepthook = _thread_exception_hook
 
+    args = argv if argv is not None else sys.argv
+    if SELF_CHECK_FLAG in args[1:]:
+        from docly.ui.selfcheck import run_self_check
+
+        return run_self_check()
+
+    app.setWindowIcon(app_icon())
     presets = load_and_log_presets()
     theme = ThemeManager(app, SettingsStore())
     window = MainWindow(theme, presets)

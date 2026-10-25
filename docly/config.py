@@ -44,9 +44,13 @@ def _base_dir() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+#: True inside the packaged app (PyInstaller sets ``sys.frozen``).
+IS_FROZEN = bool(getattr(sys, "frozen", False))
 BASE_DIR = _base_dir()
 ASSETS_DIR = BASE_DIR / "assets"
 ICONS_DIR = ASSETS_DIR / "icons"
+APP_ICON_PATH = ASSETS_DIR / "app" / "docly.ico"
+APP_ICON_PNG = ASSETS_DIR / "app" / "docly-256.png"
 BUNDLED_PRESETS_PATH = BASE_DIR / "docly" / "presets" / "presets.json"
 
 

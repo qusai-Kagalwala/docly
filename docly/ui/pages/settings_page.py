@@ -169,7 +169,7 @@ class SettingsPage(BasePage):
         self.open_logs_button.setObjectName("open_logs_button")
         self.open_logs_button.clicked.connect(self._open_log_folder)
         log_file = current_log_file()
-        location = str(log_file.parent) if log_file else str(config.log_dir())
+        location = str(desktop.explorer_path(log_file.parent if log_file else config.log_dir()))
         row, _desc = _setting_row("Log files", f"Useful when reporting a problem. Saved in {location}", self.open_logs_button)
         diagnostics.body.addLayout(row)
         self.add_card(diagnostics)
@@ -236,6 +236,6 @@ class SettingsPage(BasePage):
 
     def _open_log_folder(self) -> None:
         log_file = current_log_file()
-        folder = log_file.parent if log_file else config.log_dir()
+        folder = desktop.explorer_path(log_file.parent if log_file else config.log_dir())
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder))):
             log.warning("Could not open log folder: %s", folder)

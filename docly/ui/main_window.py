@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from docly import config
@@ -25,7 +25,7 @@ from docly.ui.pages.sign_page import SignPage
 from docly.ui.pages.signature_page import SignaturePage
 from docly.ui.shortcuts import ShortcutsDialog
 from docly.ui.sidebar import NavItem, Sidebar
-from docly.ui.theme import ThemeManager, Tokens
+from docly.ui.theme import LIGHT, ThemeManager, Tokens
 from docly.ui.tour import TourOverlay, TourStep
 from docly.ui.widgets.pdf_result_card import PdfResultCard
 from docly.ui.widgets.preset_picker import PresetPicker
@@ -38,6 +38,15 @@ log = get_logger(__name__)
 PAGE_CLASSES: tuple[type[BasePage], ...] = (
     HomePage, PhotoPage, SignaturePage, PdfPage, SignPage, BatchPage, SettingsPage,
 )  # fmt: skip
+
+
+def app_icon() -> QIcon:
+    """Docly's app icon (the same file the .exe and the Store use)."""
+    for path in (config.APP_ICON_PATH, config.APP_ICON_PNG):
+        icon = QIcon(str(path))
+        if not icon.isNull():
+            return icon
+    return make_icon("docly-mark", LIGHT.accent, 64)  # icon files missing: never leave the window blank
 
 
 class MainWindow(QMainWindow):
@@ -323,4 +332,4 @@ class MainWindow(QMainWindow):
         return self._about
 
     def _apply_tokens(self, tokens: Tokens) -> None:
-        self.setWindowIcon(make_icon("docly-mark", tokens.accent, 64))
+        self.setWindowIcon(app_icon())
