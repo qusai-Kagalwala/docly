@@ -200,6 +200,26 @@ QPushButton[variant="ghost"]:hover {
     color: $text;
 }
 
+/* ---------- tables (Batch) ---------- */
+QTableView {
+    background: $surface;
+    alternate-background-color: $surface_alt;
+    color: $text;
+    border: 1px solid $border;
+    border-radius: 8px;
+    gridline-color: $border;
+    selection-background-color: $accent_tint;
+    selection-color: $text;
+}
+QHeaderView::section {
+    background: $surface_alt;
+    color: $text_muted;
+    border: none;
+    border-bottom: 1px solid $border;
+    padding: 6px 8px;
+    font-weight: 600;
+}
+
 /* ---------- home page & tour ---------- */
 QFrame#TourBubble {
     background: $surface;

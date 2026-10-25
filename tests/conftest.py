@@ -7,6 +7,7 @@ touched.
 
 from __future__ import annotations
 
+import gc
 import os
 
 # Must be set before any Qt module is imported.
@@ -21,6 +22,22 @@ from docly import config  # noqa: E402
 from docly.ui.main_window import MainWindow  # noqa: E402
 from docly.ui.settings_store import SettingsStore  # noqa: E402
 from docly.ui.theme import ThemeManager  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _delete_closed_widgets(request: pytest.FixtureRequest):
+    """Really delete widgets closed by a test before the next one starts.
+
+    pytest-qt closes test widgets with ``deleteLater()``, which only runs
+    when the event loop does. Without this, old windows pile up and every
+    theme change restyles all of them, making later tests much slower.
+    """
+    yield
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    if QCoreApplication.instance() is not None:
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        gc.collect()
 
 
 @pytest.fixture(autouse=True)
@@ -50,3 +67,24 @@ def main_window(qtbot, theme_manager: ThemeManager) -> MainWindow:
     window.show()
     qtbot.waitExposed(window)
     return window
+
+
+# ----------------------------------------------------------------------
+# Quick mode:  pytest -m "not slow"   (everyday runs, about a third of the time)
+#              pytest                 (everything; run this before pushing)
+# ----------------------------------------------------------------------
+#: Test files that process real images/PDFs end to end or run the AI model.
+SLOW_MODULES = frozenset(
+    {
+        "test_pipeline", "test_pdf_compress", "test_background", "test_signature", "test_compress",
+        "test_photo_page", "test_signature_page", "test_pdf_page", "test_sign_page",
+        "test_batch", "test_batch_page", "test_pdf_fill_render",
+    }
+)  # fmt: skip
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    slow = pytest.mark.slow
+    for item in items:
+        if item.module is not None and item.module.__name__.rsplit(".", 1)[-1] in SLOW_MODULES:
+            item.add_marker(slow)

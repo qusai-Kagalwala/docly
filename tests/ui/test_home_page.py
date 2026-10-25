@@ -32,10 +32,10 @@ def test_feature_card_keyboard(main_window: MainWindow, qtbot) -> None:
     assert main_window.current_page_id() == "pdf"
 
 
-def test_batch_is_marked_coming_soon(main_window: MainWindow) -> None:
-    card = main_window.page("home").feature_cards["batch"]
-    assert not card.feature.ready
-    assert any(label.text() == "Coming soon" for label in card.findChildren(type(card.icon)))
+def test_every_tool_is_ready(main_window: MainWindow) -> None:
+    cards = main_window.page("home").feature_cards
+    assert all(card.feature.ready for card in cards.values())
+    assert not any(label.text() == "Coming soon" for card in cards.values() for label in card.findChildren(type(card.icon)))
 
 
 def test_start_with_a_photo(main_window: MainWindow, qtbot) -> None:

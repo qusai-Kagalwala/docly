@@ -29,7 +29,7 @@ FEATURES: tuple[Feature, ...] = (
     Feature("signature", "pen-line", "Signature", "Clean up a phone photo of your signature: white or see-through background."),
     Feature("pdf", "file-text", "PDF", "Merge, reorder, split and shrink PDFs and photos to a size limit."),
     Feature("sign", "signature", "Fill & Sign", "Type on forms, tick boxes, add the date and your signature."),
-    Feature("batch", "layers", "Batch", "Prepare many files at once with one preset.", ready=False),
+    Feature("batch", "layers", "Batch", "Prepare many photos, signatures or PDFs at once, with a report."),
 )
 
 STEPS: tuple[tuple[str, str], ...] = (

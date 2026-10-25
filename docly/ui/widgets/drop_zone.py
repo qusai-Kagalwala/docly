@@ -113,6 +113,10 @@ class DropZone(QFrame):
         theme.themeChanged.connect(self._apply_tokens)
         self._apply_tokens(theme.tokens)
 
+    def set_file_filter(self, file_filter: str) -> None:
+        """Change what the file picker offers (e.g. images or PDFs)."""
+        self._file_filter = file_filter
+
     @property
     def active(self) -> bool:
         return self.property("active") == "true"

@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.pages: list[BasePage] = [
-            cls(theme, presets) if issubclass(cls, (ImageToolPage, PdfPage, SignPage)) else cls(theme) for cls in PAGE_CLASSES
+            cls(theme, presets) if issubclass(cls, (ImageToolPage, PdfPage, SignPage, BatchPage)) else cls(theme) for cls in PAGE_CLASSES
         ]
         self.sidebar = Sidebar([NavItem(p.PAGE_ID, p.TITLE, p.ICON) for p in self.pages], theme)
         self.stack = QStackedWidget()

@@ -32,3 +32,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 qt_api = "pyside6"
 addopts = "-ra"
+markers = [
+    "slow: end-to-end tests on real images, PDFs or the AI model (skip with -m \"not slow\")",
+]
