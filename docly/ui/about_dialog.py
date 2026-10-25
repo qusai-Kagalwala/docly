@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
 
 from docly import config
 from docly.ui.icons import render_icon
@@ -100,6 +100,10 @@ class AboutDialog(QDialog):
         self.shortcuts_button.setToolTip("F1")
         self.shortcuts_button.clicked.connect(self.shortcutsRequested)
         buttons.addWidget(self.shortcuts_button)
+        self.licences_button = QPushButton("Open-source licences")
+        self.licences_button.setObjectName("about_licences")
+        self.licences_button.clicked.connect(self.show_licences)
+        buttons.addWidget(self.licences_button)
         buttons.addStretch(1)
         self.close_button = QPushButton("Close")
         self.close_button.setObjectName("about_close")
@@ -113,5 +117,50 @@ class AboutDialog(QDialog):
         theme.themeChanged.connect(self._apply_tokens)
         self._apply_tokens(theme.tokens)
 
+    def show_licences(self) -> LicencesDialog:
+        dialog = LicencesDialog(self)
+        dialog.open()
+        return dialog
+
     def _apply_tokens(self, tokens: Tokens) -> None:
         self._mark.setPixmap(render_icon("docly-mark", tokens.accent, 48, self.devicePixelRatioF()))
+
+
+def read_notices() -> str:
+    try:
+        return config.NOTICES_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return (
+            "The licence file is missing from this copy of Docly.\n"
+            f"See {config.REPO_URL} for the licences of the software Docly uses."
+        )
+
+
+class LicencesDialog(QDialog):
+    """The licences of everything packaged with Docly (read-only text)."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("LicencesDialog")
+        self.setWindowTitle("Open-source licences")
+        self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
+        self.resize(720, 560)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        intro = QLabel(
+            f"{config.APP_NAME} is free software under the {config.APP_LICENSE} licence. "
+            "It is built on the open-source projects below."
+        )
+        intro.setWordWrap(True)
+        intro.setProperty("role", "body")
+        layout.addWidget(intro)
+        self.text = QPlainTextEdit(read_notices())
+        self.text.setReadOnly(True)
+        self.text.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.text.setAccessibleName("Licence texts")
+        layout.addWidget(self.text, 1)
+        close = QPushButton("Close")
+        close.setProperty("variant", "primary")
+        close.setDefault(True)
+        close.clicked.connect(self.accept)
+        layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)

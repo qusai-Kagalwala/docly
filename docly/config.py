@@ -51,6 +51,7 @@ ASSETS_DIR = BASE_DIR / "assets"
 ICONS_DIR = ASSETS_DIR / "icons"
 APP_ICON_PATH = ASSETS_DIR / "app" / "docly.ico"
 APP_ICON_PNG = ASSETS_DIR / "app" / "docly-256.png"
+NOTICES_PATH = ASSETS_DIR / "licenses" / "THIRD_PARTY_NOTICES.txt"
 BUNDLED_PRESETS_PATH = BASE_DIR / "docly" / "presets" / "presets.json"
 
 

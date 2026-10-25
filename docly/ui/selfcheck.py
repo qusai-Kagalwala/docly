@@ -56,7 +56,7 @@ def check_presets(_folder: Path) -> str:
 
 
 def check_assets(_folder: Path) -> str:
-    missing = [p for p in (config.APP_ICON_PATH, config.ICONS_DIR / "check.svg") if not p.exists()]
+    missing = [p for p in (config.APP_ICON_PATH, config.ICONS_DIR / "check.svg", config.NOTICES_PATH) if not p.exists()]
     if missing:
         raise RuntimeError("missing " + ", ".join(str(p) for p in missing))
     from docly.ui.icons import render_icon
@@ -64,7 +64,7 @@ def check_assets(_folder: Path) -> str:
 
     if render_icon("check", LIGHT.text, 16).isNull():
         raise RuntimeError("SVG icons don't render (QtSvg missing?)")
-    return "icons and app icon present"
+    return "icons, app icon and licence notices present"
 
 
 def check_photo(folder: Path) -> str:

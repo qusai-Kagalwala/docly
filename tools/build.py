@@ -3,7 +3,7 @@
     pip install -r requirements-build.txt     (once)
     python tools/build.py
 
-Steps: check the icon files, write the .exe's version info, run
+Steps: check the icon files, refresh the licence notices, write the .exe's version info, run
 PyInstaller with ``packaging/docly.spec``, then run the built app with
 ``--self-check`` (every engine on tiny files, plus the main window) and
 print its report and the build's size.
@@ -126,6 +126,11 @@ def main(argv: list[str] | None = None) -> int:
     print("1/4  Checking icon files…")
     if subprocess.run([sys.executable, str(ROOT / "tools" / "make_icons.py"), "--check"], check=False).returncode:
         print("     Run  python tools/make_icons.py  and build again.")
+        return 1
+
+    print("     Licence notices from this environment…")
+    if subprocess.run([sys.executable, str(ROOT / "tools" / "make_notices.py")], check=False).returncode:
+        print("     Couldn't write the licence notices.")
         return 1
 
     print(f"2/4  Version info for {APP_NAME} {__version__}…")

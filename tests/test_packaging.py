@@ -147,3 +147,34 @@ def test_icon_check_ignores_antialiasing_but_not_changes(qapp) -> None:
     assert not make_icons.same_picture(original, make_icons.png_bytes(recoloured))
     assert not make_icons.same_picture(original, make_icons.png_bytes(make_icons.icon(32)))  # wrong size
     assert make_icons.same_picture(make_icons.ico_bytes(), config.APP_ICON_PATH.read_bytes())
+
+
+# ----- licence notices ----------------------------------------------------------------
+def test_notices_cover_everything_bundled() -> None:
+    import make_notices
+
+    text = config.NOTICES_PATH.read_text(encoding="utf-8")
+    for name in ("Python", "Qt and Qt for Python", "opencv-python-headless", "numpy", "pikepdf", "lxml",
+                 "Lucide icons", "MODNet", "GNU Lesser General Public License v3.0"):  # fmt: skip
+        assert name.lower() in text.lower(), f"{name} missing: run python tools/make_notices.py"
+    assert "pillow" in text.lower() and "download.qt.io" in text
+    bundled = {d.metadata["Name"].lower() for d in make_notices.dependencies()}
+    assert {"numpy", "pikepdf", "pillow"} <= bundled
+
+
+def test_about_shows_licences(qtbot, theme_manager) -> None:
+    from docly.ui.about_dialog import AboutDialog, LicencesDialog
+
+    about = AboutDialog(theme_manager)
+    qtbot.addWidget(about)
+    dialog = about.show_licences()
+    assert isinstance(dialog, LicencesDialog) and dialog.isVisible()
+    assert "Lucide" in dialog.text.toPlainText() and dialog.text.isReadOnly()
+    dialog.accept()
+
+
+def test_missing_notices_file_is_explained(monkeypatch, tmp_path) -> None:
+    from docly.ui import about_dialog
+
+    monkeypatch.setattr(config, "NOTICES_PATH", tmp_path / "nope.txt")
+    assert config.REPO_URL in about_dialog.read_notices()

@@ -11,6 +11,7 @@ Outputs
 * ``assets/app/docly-256.png`` — the window icon Qt loads at run time.
 * ``packaging/msix/Assets/*.png`` — the logos the MSIX manifest and the
   Microsoft Store need, at every scale Windows asks for (100–400 %).
+* ``packaging/store/*.png`` — square logos to upload on the Store listing page.
 
 Desktop note: Windows picks an icon size to match the display scaling
 (125 %, 150 %…). Supplying each size means it never has to stretch a small
@@ -41,6 +42,7 @@ from PySide6.QtSvg import QSvgRenderer  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT / "assets" / "app"
 MSIX_ASSETS = ROOT / "packaging" / "msix" / "Assets"
+STORE_ART = ROOT / "packaging" / "store"
 ICON_SVG = APP_DIR / "docly-app.svg"
 SMALL_SVG = APP_DIR / "docly-app-small.svg"
 
@@ -114,6 +116,10 @@ def planned_files() -> dict[Path, Callable[[], bytes]]:
         add(f"Square150x150Logo.scale-{scale}.png", lambda f=factor: tile(round(150 * f), round(150 * f)))
         add(f"Wide310x150Logo.scale-{scale}.png", lambda f=factor: tile(round(310 * f), round(150 * f)))
         add(f"StoreLogo.scale-{scale}.png", lambda f=factor: icon(round(50 * f)))
+    # Partner Center > Store listings > Store logos (optional, shown on some Windows versions).
+    files[STORE_ART / "box-art-1080.png"] = lambda: png_bytes(icon(1080))
+    files[STORE_ART / "box-art-2160.png"] = lambda: png_bytes(icon(2160))
+    files[STORE_ART / "logo-300.png"] = lambda: png_bytes(icon(300))
     for size in TARGET_SIZES:
         # "unplated" = shown straight on the taskbar, without a coloured plate behind it.
         add(f"Square44x44Logo.targetsize-{size}.png", lambda s=size: icon(s))
