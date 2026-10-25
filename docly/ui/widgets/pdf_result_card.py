@@ -8,6 +8,7 @@ split doesn't scatter 40 files among your other outputs.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
@@ -31,6 +32,19 @@ from docly.ui.widgets.card import Card
 from docly.ui.widgets.style import set_style_prop
 
 log = get_logger(__name__)
+
+
+def strict_kb(size: int) -> str:
+    """Size in KB counted as 1000 bytes and rounded *up*, as strict portals count it."""
+    kb = math.ceil(size / 1000)
+    return f"{kb / 1000:.1f} MB" if kb >= 10_000 else f"{kb} KB"
+
+
+def limit_text(target_bytes: int | None) -> str:
+    if target_bytes is None:
+        return ""
+    kb = target_bytes / 1000
+    return f"{kb / 1000:g} MB" if kb >= 1000 else f"{kb:g} KB"
 
 
 def format_size(size: int) -> str:
@@ -165,6 +179,10 @@ class PdfResultCard(Card):
         self.create_button.hide()
         self._show_save_buttons(False)
 
+    def set_stage(self, text: str) -> None:
+        """Change the "Working…" line, e.g. to "Shrinking to under 500 KB…"."""
+        self.subtitle.setText(text)
+
     def set_progress(self, done: int, total: int) -> None:
         if total > 0:
             self.progress.setRange(0, total)
@@ -186,15 +204,32 @@ class PdfResultCard(Card):
         self._split = split
         self.saved_paths = []
         total = sum(r.size_bytes for r in results)
+        limited = [r for r in results if r.target_bytes is not None]
+        over = [r for r in limited if not r.met_target]
+        limit = limit_text(limited[0].target_bytes) if limited else ""
         if split:
             title = f"{len(results)} PDFs ready"
             summary = f"{sum(r.page_count for r in results)} pages in total · {format_size(total)}"
+            if over:
+                title = f"{len(over)} of {len(results)} PDFs are over {limit}"
+            elif limited:
+                summary += f" · each under {limit}"
         else:
             result = results[0]
             title = "PDF ready"
             pages = f"{result.page_count} page" + ("" if result.page_count == 1 else "s")
-            summary = f"{result.suggested_name} · {pages} · {format_size(total)}"
-        self._set_status("✅", title, summary, "pass")
+            if limited:
+                size = f"{strict_kb(result.size_bytes)} (limit {limit})"
+            else:
+                size = format_size(result.size_bytes)
+            summary = f"{result.suggested_name} · {pages} · {size}"
+            if over:
+                title = f"Couldn't get under {limit}"
+                summary = f"Smallest readable version: {strict_kb(result.size_bytes)} · {pages}"
+        if over:
+            self._set_status("⚠️", title, summary, "warn")
+        else:
+            self._set_status("✅", title, summary, "pass")
         self._show_progress(False)
         warnings = sorted({w for r in results for w in r.warnings})
         self.notes.setText("\n".join(f"⚠ {w}" for w in warnings))

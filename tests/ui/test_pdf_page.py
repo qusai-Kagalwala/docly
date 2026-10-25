@@ -18,8 +18,8 @@ TIMEOUT = 15_000
 
 
 @pytest.fixture
-def page(qtbot, theme_manager) -> Iterator[PdfPage]:
-    widget = PdfPage(theme_manager)
+def page(qtbot, theme_manager, bundled_presets) -> Iterator[PdfPage]:
+    widget = PdfPage(theme_manager, bundled_presets, region="IN")
     qtbot.addWidget(widget)
     widget.resize(1100, 720)
     widget.show()
@@ -292,3 +292,70 @@ def test_dragging_pages_reorders_with_undo(qtbot, page: PdfPage, form: Path) -> 
     assert event.isAccepted()
     page.grid.undo_action.trigger()
     assert [r.page for r in page.model.plan] == [0, 1, 2, 3]
+
+
+# ----------------------------------------------------------------------
+# Shrink to size (Phase 8)
+# ----------------------------------------------------------------------
+@pytest.fixture
+def scans(tmp_path: Path) -> list[Path]:
+    return [images.save(images.photo_like(1240, 1754), tmp_path / f"scan{i}.jpg", quality=92) for i in (1, 2)]
+
+
+def test_shrink_to_custom_limit(qtbot, page: PdfPage, scans: list[Path]) -> None:
+    add(qtbot, page, *scans, pages=2)
+    plain = build(qtbot, page)
+    page.compress_card.select("custom")
+    assert not page.result_card.results  # changing the limit makes the old result out of date
+    page.compress_card.custom_kb.setValue(len(plain) // 1000 // 3)
+    data = build(qtbot, page)
+    result = page.result_card.results[0]
+    assert result.met_target and len(data) <= result.target_bytes
+    assert page.result_card.title.text() == "PDF ready"
+    assert "(limit" in page.result_card.subtitle.text()
+
+
+def test_impossible_limit_is_reported_honestly(qtbot, page: PdfPage, scans: list[Path]) -> None:
+    add(qtbot, page, *scans, pages=2)
+    page.compress_card.select("custom")
+    page.compress_card.custom_kb.setValue(10)
+    build(qtbot, page)
+    assert page.result_card.title.text() == "Couldn't get under 10 KB"
+    assert page.result_card.subtitle.text().startswith("Smallest readable version")
+    assert page.result_card.notes.isVisible()
+    assert page.result_card.save_button.isVisible()  # still saveable
+
+
+def test_each_split_part_gets_the_limit(qtbot, page: PdfPage, scans: list[Path]) -> None:
+    add(qtbot, page, *scans, pages=2)
+    page.compress_card.select("custom")
+    page.compress_card.custom_kb.setValue(150)
+    page.split_pdf()  # "Each page" by default
+    qtbot.waitUntil(lambda: len(page.result_card.results) == 2, timeout=TIMEOUT)
+    assert all(r.met_target and r.size_bytes <= 150_000 for r in page.result_card.results)
+    assert "each under 150 KB" in page.result_card.subtitle.text()
+
+
+def test_grayscale_without_limit(qtbot, page: PdfPage, scans: list[Path]) -> None:
+    import io
+
+    import pikepdf
+
+    add(qtbot, page, scans[0], pages=1)
+    page.compress_card.grayscale.setChecked(True)
+    data = build(qtbot, page)
+    with pikepdf.open(io.BytesIO(data)) as pdf:
+        xobjects = pdf.pages[0].obj.Resources.XObject
+        image = xobjects[next(iter(xobjects.keys()))]
+        assert image.ColorSpace == pikepdf.Name.DeviceGray
+    assert page.result_card.results[0].met_target is True
+
+
+def test_side_column_fits_without_clipping(qtbot, page: PdfPage, form: Path, tmp_path: Path) -> None:
+    photo = images.save(images.photo_like(300, 400), tmp_path / "a photo with a fairly long file name.jpg")
+    add(qtbot, page, form, photo, pages=5)  # every side card visible
+    page.compress_card.select("in-jee-main-certificate")  # a long preset name
+    page.compress_card.select("custom")
+    qtbot.wait(50)  # let the column re-measure
+    column = page.side_scroll.widget()
+    assert column.minimumSizeHint().width() <= page.side_scroll.viewport().width()

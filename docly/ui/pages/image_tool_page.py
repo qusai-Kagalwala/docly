@@ -14,13 +14,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -33,7 +32,7 @@ from docly.core.resize import CropBox
 from docly.logger import get_logger
 from docly.presets import PresetLoadResult, default_presets
 from docly.presets.models import Preset, PresetKind
-from docly.ui.pages.base_page import BasePage
+from docly.ui.pages.base_page import BasePage, SideColumn
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
 from docly.ui.widgets.crop_view import CropView
@@ -122,18 +121,8 @@ class ImageToolPage(BasePage):
         actions.addWidget(self.replace_button)
         left.addLayout(actions)
 
-        side = QWidget()
-        side.setObjectName("PageBody")
-        self.side = QVBoxLayout(side)
-        self.side.setSpacing(16)
-        # Room on the right for the scrollbar and on the edges for card shadows.
-        self.side.setContentsMargins(2, 0, 12, 4)
-        self.side_scroll = QScrollArea()
-        self.side_scroll.setWidgetResizable(True)
-        self.side_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        self.side_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.side_scroll.setFixedWidth(SIDE_WIDTH + 14)
-        self.side_scroll.setWidget(side)
+        self.side_scroll = SideColumn(SIDE_WIDTH + 14)
+        self.side = self.side_scroll.column
         columns.addWidget(self.side_scroll)
 
         picker_card = Card(theme)

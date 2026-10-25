@@ -7,6 +7,7 @@
     python -m docly.core.pdf_cli rotate   scan.pdf --pages "2,4" --angle 90
     python -m docly.core.pdf_cli split    form.pdf --ranges "1-2, 3-"
     python -m docly.core.pdf_cli split    form.pdf --every 1
+    python -m docly.core.pdf_cli compress scan.pdf --kb 500 [--min-kb 50] [--grayscale]
 
 Results go into ``Docly_Output`` next to the first input (or ``--out``);
 nothing is ever overwritten. Password-protected PDFs prompt for the password.
@@ -16,15 +17,19 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import math
 import sys
 from pathlib import Path
 
-from docly.core.errors import DoclyError, PasswordRequiredError, WrongPasswordError
+from docly.core.errors import DoclyError, InvalidPageRangeError, PasswordRequiredError, WrongPasswordError
 from docly.core.files import write_new_file
 from docly.core.image_pdf import PageSize
+from docly.core.pdf_compress import apply_to_result
 from docly.core.pdf_ops import (
     PdfResult,
     Source,
+    all_pages,
+    build_pdf,
     close_all,
     delete_pages,
     extract,
@@ -33,6 +38,7 @@ from docly.core.pdf_ops import (
     rotate,
     split_by_ranges,
     split_every,
+    suggest_name,
 )
 
 OUTPUT_FOLDER = "Docly_Output"
@@ -77,6 +83,10 @@ def _parser() -> argparse.ArgumentParser:
     group = split_cmd.add_mutually_exclusive_group(required=True)
     group.add_argument("--ranges", help='one file per range, e.g. "1-2, 3-"')
     group.add_argument("--every", type=int, help="one file per N pages")
+    compress_cmd = add("compress", "shrink to a size limit")
+    compress_cmd.add_argument("--kb", type=float, help="largest allowed size in KB (1 KB = 1000 bytes, the safe reading)")
+    compress_cmd.add_argument("--min-kb", type=float, help="smallest allowed size in KB, if the portal has one")
+    compress_cmd.add_argument("--grayscale", action="store_true", help="turn pictures grey")
     return parser
 
 
@@ -117,6 +127,16 @@ def _run(args: argparse.Namespace, sources: list[Source]) -> list[PdfResult]:
         return [delete_pages(source, args.pages)]
     if args.command == "rotate":
         return [rotate(source, args.pages, args.angle)]
+    if args.command == "compress":
+        if args.kb is None and not args.grayscale:
+            raise InvalidPageRangeError("Give a size limit with --kb (and/or use --grayscale).")
+        built = build_pdf([source], all_pages([source]), suggest_name([source], all_pages([source])))
+        target = math.floor(args.kb * 1000) if args.kb else None
+        minimum = math.ceil(args.min_kb * 1024) if args.min_kb else None
+        result = apply_to_result(built, target, minimum, args.grayscale)
+        if result.met_target is False:
+            print(f"Couldn't reach {args.kb:g} KB; this is the smallest readable version.")
+        return [result]
     if args.ranges:
         return split_by_ranges(source, args.ranges)
     return split_every(source, args.every)

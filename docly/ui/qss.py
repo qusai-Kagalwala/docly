@@ -245,6 +245,33 @@ QComboBox::down-arrow {
     width: 14px;
     height: 14px;
 }
+QSpinBox, QDoubleSpinBox {
+    padding-right: 26px;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 24px;
+    border: none;
+    background: transparent;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-position: top right; margin-top: 3px; }
+QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-position: bottom right; margin-bottom: 3px; }
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+    background: $hover_tint;
+    border-radius: 4px;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    $spin_up_arrow
+    width: 12px;
+    height: 12px;
+}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    $combo_arrow
+    width: 12px;
+    height: 12px;
+}
 QComboBox QAbstractItemView {
     background: $surface;
     border: 1px solid $border;
@@ -315,6 +342,7 @@ QLabel#StatusTitle {
 }
 QLabel#StatusTitle[state="pass"] { color: $success_text; }
 QLabel#StatusTitle[state="fail"] { color: $danger_text; }
+QLabel#StatusTitle[state="warn"] { color: $warning_text; }
 QFrame#OutputPreview {
     background: $surface_alt;
     border: 1px solid $border;
@@ -377,13 +405,15 @@ QMessageBox QLabel {
 )
 
 
-def build_stylesheet(t: Tokens, combo_arrow: str | None = None) -> str:
+def build_stylesheet(t: Tokens, combo_arrow: str | None = None, up_arrow: str | None = None) -> str:
     """Return the full QSS for one palette.
 
-    ``combo_arrow`` is the path of a recoloured chevron SVG for dropdowns
-    (QSS can only load images from files). Without it Qt draws its own.
+    ``combo_arrow`` / ``up_arrow`` are paths of recoloured chevron SVGs for
+    dropdowns and number boxes (QSS can only load images from files).
+    Without them Qt draws its own.
     """
     values: dict[str, str] = {name: getattr(t, name) for name in t.__dataclass_fields__ if name != "name"}
     values.update(derived_colors(t))
     values["combo_arrow"] = f'image: url("{combo_arrow}");' if combo_arrow else ""
+    values["spin_up_arrow"] = f'image: url("{up_arrow}");' if up_arrow else ""
     return _TEMPLATE.substitute(values)

@@ -77,3 +77,30 @@ def test_error_and_idle(qtbot, theme_manager) -> None:
 def test_format_size() -> None:
     assert format_size(2048) == "2 KB"
     assert format_size(3 * 1024 * 1024) == "3.0 MB"
+
+
+def limited(name: str, size: int, target: int) -> PdfResult:
+    return PdfResult(b"x" * size, 1, name, [], target_bytes=target, met_target=size <= target)
+
+
+def test_size_check_counts_strict_kb(qtbot, theme_manager, tmp_path: Path) -> None:
+    c = card(qtbot, theme_manager)
+    c.show_results([limited("a.pdf", 499_100, 500_000)], tmp_path / "a.pdf")
+    assert c.title.text() == "PDF ready"
+    assert "500 KB (limit 500 KB)" in c.subtitle.text()  # 499,100 bytes rounds up, never down
+
+
+def test_split_with_parts_over_the_limit(qtbot, theme_manager, tmp_path: Path) -> None:
+    c = card(qtbot, theme_manager)
+    parts = [limited("a_pages-1.pdf", 90_000, 100_000), limited("a_pages-2.pdf", 140_000, 100_000)]
+    c.show_results(parts, tmp_path / "a.pdf", split=True)
+    assert c.title.text() == "1 of 2 PDFs are over 100 KB"
+    assert c.title.property("state") == "warn"
+    assert c.save_button.isVisible()
+
+
+def test_stage_text(qtbot, theme_manager) -> None:
+    c = card(qtbot, theme_manager)
+    c.show_busy()
+    c.set_stage("Shrinking to under 500 KB…")
+    assert c.subtitle.text() == "Shrinking to under 500 KB…"

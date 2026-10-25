@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QScrollArea,
     QSpinBox,
     QStackedWidget,
     QToolButton,
@@ -34,9 +33,12 @@ from PySide6.QtWidgets import (
 from docly.core.errors import DoclyError, PasswordRequiredError, WrongPasswordError
 from docly.core.image_pdf import PageSize
 from docly.core.page_ranges import parse_ranges
+from docly.core.pdf_compress import apply_to_result
 from docly.core.pdf_ops import PageRef, PdfResult, Source, build_pdf, load_source, split_plan, suggest_name
 from docly.logger import get_logger
-from docly.ui.pages.base_page import BasePage
+from docly.presets import PresetLoadResult, default_presets
+from docly.ui.pages.base_page import BasePage, SideColumn
+from docly.ui.pdf.compress_card import CompressCard
 from docly.ui.pdf.file_list import FileList, FileRow
 from docly.ui.pdf.page_grid import PageGrid
 from docly.ui.pdf.password_dialog import ask_password
@@ -57,7 +59,8 @@ PDF_FILE_FILTER = (
     "PDFs and photos (*.pdf *.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff *.gif *.heic *.heif);;"
     "PDF documents (*.pdf);;All files (*)"
 )
-SIDE_WIDTH = 320
+SIDE_WIDTH = 340  # a little wider than the photo pages: more cards, longer labels
+SEGMENT_MIN = 56
 SPLIT_EVERY_PAGE, SPLIT_EVERY_N, SPLIT_RANGES = "single", "every", "ranges"
 
 
@@ -65,6 +68,7 @@ class _Progress(QObject):
     """Carries progress from a worker thread to the UI thread."""
 
     changed = Signal(int, int)
+    stage = Signal(str)  # e.g. "Shrinking part 2 of 4…"
 
 
 class _NeedsPassword:
@@ -82,9 +86,16 @@ class PdfPage(BasePage):
     ICON = "file-text"
     SCROLLS = False
 
-    def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        theme: ThemeManager,
+        presets: PresetLoadResult | None = None,
+        region: str | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(theme, parent)
         self.setAcceptDrops(True)
+        presets = presets if presets is not None else default_presets()
         self.sources: list[Source] = []  # append-only while a session lasts
         self._queue: list[tuple[Path, str | None]] = []  # files waiting to open
         self._insert_at: int | None = None  # where the next opened file's pages go
@@ -135,18 +146,9 @@ class PdfPage(BasePage):
         left.addWidget(self.status_label)
 
         # ----- right: files, photo page size, split, result ---------------------
-        side = QWidget()
-        side.setObjectName("PageBody")
-        self.side = QVBoxLayout(side)
-        self.side.setSpacing(16)
-        self.side.setContentsMargins(2, 0, 12, 4)
-        side_scroll = QScrollArea()
-        side_scroll.setWidgetResizable(True)
-        side_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        side_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        side_scroll.setFixedWidth(SIDE_WIDTH + 14)
-        side_scroll.setWidget(side)
-        columns.addWidget(side_scroll)
+        self.side_scroll = SideColumn(SIDE_WIDTH + 14)
+        self.side = self.side_scroll.column
+        columns.addWidget(self.side_scroll)
 
         files_card = Card(theme)
         files_card.body.addWidget(_section("Files"))
@@ -158,7 +160,9 @@ class PdfPage(BasePage):
 
         self.page_size_card = Card(theme)
         self.page_size_card.body.addWidget(_section("Page size for photos"))
-        self.page_size = SegmentedControl([("a4", "A4"), ("letter", "Letter"), ("fit", "Fit photo")])
+        self.page_size = SegmentedControl(
+            [("a4", "A4"), ("letter", "Letter"), ("fit", "Fit photo")], min_button_width=SEGMENT_MIN
+        )
         self.page_size.set_value("a4")
         self.page_size_card.body.addWidget(self.page_size)
         size_hint = QLabel("Photos are centred on the page with a small margin. “Fit photo” makes the page the photo's size.")
@@ -166,6 +170,9 @@ class PdfPage(BasePage):
         size_hint.setWordWrap(True)
         self.page_size_card.body.addWidget(size_hint)
         self.side.addWidget(self.page_size_card)
+
+        self.compress_card = CompressCard(theme, presets.presets, region)
+        self.side.addWidget(self.compress_card)
 
         self.result_card = PdfResultCard(theme)
         self.side.addWidget(self.result_card)
@@ -184,6 +191,7 @@ class PdfPage(BasePage):
         self.file_list.removeRequested.connect(self.remove_source)
         self.model.planChanged.connect(self._on_plan_changed)
         self.page_size.valueChanged.connect(lambda _v: self._mark_stale())
+        self.compress_card.changed.connect(self._mark_stale)
         self.loader.finished.connect(self._on_opened)
         self.loader.failed.connect(self._on_open_failed)
         self.processor.finished.connect(self._on_built)
@@ -191,6 +199,7 @@ class PdfPage(BasePage):
         self.result_card.createRequested.connect(self.create_pdf)
         self.result_card.cancelRequested.connect(self.cancel)
         self._progress.changed.connect(self.result_card.set_progress)
+        self._progress.stage.connect(self.result_card.set_stage)
 
         self._on_plan_changed()
 
@@ -241,7 +250,8 @@ class PdfPage(BasePage):
         card = Card(theme)
         card.body.addWidget(_section("Split into several PDFs"))
         self.split_mode = SegmentedControl(
-            [(SPLIT_EVERY_PAGE, "Each page"), (SPLIT_EVERY_N, "Every N"), (SPLIT_RANGES, "Ranges")]
+            [(SPLIT_EVERY_PAGE, "Each page"), (SPLIT_EVERY_N, "Every N"), (SPLIT_RANGES, "Ranges")],
+            min_button_width=SEGMENT_MIN,
         )
         self.split_mode.set_value(SPLIT_EVERY_PAGE)
         card.body.addWidget(self.split_mode)
@@ -417,6 +427,7 @@ class PdfPage(BasePage):
         page_size = self.current_page_size()
         first = sources[plan[groups[0][0]].source if groups else plan[0].source].path
         lock, progress = self._build_lock, self._progress
+        shrink = self.compress_card.settings()  # read widgets here, never on the worker
 
         def job(token: CancelToken) -> tuple[list[PdfResult], Path, bool]:
             def report(done: int, total: int) -> None:
@@ -427,14 +438,26 @@ class PdfPage(BasePage):
                     results = [build_pdf(sources, plan, name, page_size, cancel=token, progress=report)]
                 else:
                     results = split_plan(sources, plan, groups, name, page_size=page_size, cancel=token)
+            if shrink.active:
+                for index, result in enumerate(results):
+                    part = f" part {index + 1} of {len(results)}" if len(results) > 1 else ""
+                    if shrink.label:
+                        progress.stage.emit(f"Shrinking{part} to under {shrink.label}…")
+                    else:
+                        progress.stage.emit(f"Making pictures grey{part}…")
+                    results[index] = apply_to_result(
+                        result, shrink.target_bytes, shrink.min_bytes, shrink.grayscale, token, report
+                    )
             return results, first, split
 
         self.result_card.show_busy("Splitting…" if split else "Building your PDF…")
+        self.side_scroll.ensureWidgetVisible(self.result_card, 0, 0)
         self.processor.submit(job)
 
     def _on_built(self, payload: tuple[list[PdfResult], Path, bool]) -> None:
         results, first, split = payload
         self.result_card.show_results(results, first, split)
+        self.side_scroll.ensureWidgetVisible(self.result_card, 0, 0)
 
     # ----- page-level drag & drop -------------------------------------------------
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802

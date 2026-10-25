@@ -15,8 +15,14 @@ class SegmentedControl(QFrame):
 
     valueChanged = Signal(str)
 
-    def __init__(self, options: list[tuple[str, str]], parent: QWidget | None = None) -> None:
-        """``options`` is a list of ``(value, label)`` pairs."""
+    def __init__(
+        self, options: list[tuple[str, str]], parent: QWidget | None = None, min_button_width: int | None = None
+    ) -> None:
+        """``options`` is a list of ``(value, label)`` pairs.
+
+        ``min_button_width`` lets the buttons shrink below their natural
+        width (for narrow side columns; Windows fonts run wider).
+        """
         super().__init__(parent)
         self.setObjectName("Segmented")
         layout = QHBoxLayout(self)
@@ -31,6 +37,8 @@ class SegmentedControl(QFrame):
             button.setObjectName(f"segment_{value}")
             button.setProperty("segment", "true")
             button.setCheckable(True)
+            if min_button_width is not None:
+                button.setMinimumWidth(min_button_width)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             self._group.addButton(button)
             self.buttons[value] = button

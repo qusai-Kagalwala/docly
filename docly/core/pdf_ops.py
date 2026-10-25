@@ -77,6 +77,8 @@ class PdfResult:
     page_count: int
     suggested_name: str
     warnings: list[str] = field(default_factory=list)
+    target_bytes: int | None = None  # size limit it was shrunk to, if any
+    met_target: bool | None = None  # None: no size limit was asked for
 
     @property
     def size_bytes(self) -> int:

@@ -80,3 +80,21 @@ def test_custom_output_folder(form: Path, tmp_path: Path) -> None:
     out = tmp_path / "elsewhere"
     assert main(["extract", str(form), "--pages", "1", "--out", str(out)]) == 0
     assert (out / "form_pages-1.pdf").exists()
+
+
+def test_compress(tmp_path: Path, capsys) -> None:
+    photo = images.save(images.photo_like(1240, 1754), tmp_path / "scan.jpg", quality=92)
+    assert main(["merge", str(photo)]) == 0
+    merged = tmp_path / "Docly_Output" / "scan.pdf"
+    limit_kb = merged.stat().st_size / 1000 / 3
+    out = tmp_path / "small"
+    assert main(["compress", str(merged), "--kb", f"{limit_kb:.0f}", "--out", str(out)]) == 0
+    saved = out / "scan.pdf"
+    assert saved.stat().st_size <= round(limit_kb) * 1000
+
+
+def test_compress_reports_best_and_needs_a_limit(form: Path, capsys) -> None:
+    assert main(["compress", str(form), "--kb", "0.1"]) == 0
+    assert "smallest readable version" in capsys.readouterr().out
+    assert main(["compress", str(form)]) == 2
+    assert "--kb" in capsys.readouterr().out
