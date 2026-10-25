@@ -12,6 +12,7 @@ from docly.ui.about_dialog import AboutDialog
 from docly.ui.icons import make_icon
 from docly.ui.pages.base_page import BasePage
 from docly.ui.pages.batch_page import BatchPage
+from docly.ui.pages.image_tool_page import ImageToolPage
 from docly.ui.pages.pdf_page import PdfPage
 from docly.ui.pages.photo_page import PhotoPage
 from docly.ui.pages.settings_page import SettingsPage
@@ -49,7 +50,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.pages: list[BasePage] = [
-            PhotoPage(theme, presets) if cls is PhotoPage else cls(theme) for cls in PAGE_CLASSES
+            cls(theme, presets) if issubclass(cls, ImageToolPage) else cls(theme) for cls in PAGE_CLASSES
         ]
         self.sidebar = Sidebar([NavItem(p.PAGE_ID, p.TITLE, p.ICON) for p in self.pages], theme)
         self.stack = QStackedWidget()

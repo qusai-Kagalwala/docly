@@ -93,3 +93,53 @@ def test_cli_bad_file(tmp_path: Path, capsys) -> None:
     bad.write_bytes(b"nope")
     assert main([str(bad), "in-ibps-photo"]) == 2
     assert "Error:" in capsys.readouterr().out
+
+
+# ----- signature pipeline ----------------------------------------------
+from docly.core.errors import NoInkFoundError  # noqa: E402
+from docly.core.image_io import load_image_bytes  # noqa: E402
+from docly.core.pipeline import process_signature  # noqa: E402
+from docly.core.signature import CleanOptions  # noqa: E402
+from docly.presets import PresetKind  # noqa: E402
+
+INK_PRESETS = [p for p in BUNDLED if p.kind in (PresetKind.SIGNATURE, PresetKind.IMAGE)]
+INK_CASES = [(p, f) for p in INK_PRESETS for f in p.formats]
+
+
+@pytest.fixture(scope="module")
+def signature_loaded():
+    return load_image_bytes(images.encode(images.signature_photo(), quality=90), "my sign.jpg")
+
+
+@pytest.mark.parametrize("preset,fmt", INK_CASES, ids=lambda v: getattr(v, "id", getattr(v, "value", v)))
+def test_every_ink_preset_passes(signature_loaded, preset, fmt) -> None:
+    result = process_signature(signature_loaded, preset, CleanOptions(), fmt=fmt)
+    assert result.passed, f"{preset.id}\n{result.report.summary()}\n{result.notes}"
+    assert result.format == fmt
+
+
+def test_small_presets_get_thicker_strokes(signature_loaded) -> None:
+    ibps = next(p for p in BUNDLED if p.id == "in-ibps-signature")
+    result = process_signature(signature_loaded, ibps)
+    assert any("thickened" in note for note in result.notes)
+    import io as _io
+
+    from PIL import Image as PILImage
+
+    with PILImage.open(_io.BytesIO(result.data)) as out:
+        darkest = out.convert("L").getextrema()[0]
+        assert darkest < 80  # strokes are dark, not pale grey
+
+
+def test_signature_pipeline_blank_page() -> None:
+    blank = load_image_bytes(images.encode(images.blank_paper()), "blank.jpg")
+    with pytest.raises(NoInkFoundError):
+        process_signature(blank, INK_PRESETS[0])
+
+
+def test_cli_signature(tmp_path: Path, capsys) -> None:
+    photo = images.save(images.signature_photo(), tmp_path / "sign.jpg", "JPEG", quality=90)
+    code = main([str(photo), "in-ibps-signature", "--signature", "--black-ink", "--strength", "60", "--out", str(tmp_path / "o")])
+    assert code == 0
+    assert (tmp_path / "o" / "sign_in-ibps-signature.jpg").exists()
+    assert "Ready to upload" in capsys.readouterr().out

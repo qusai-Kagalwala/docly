@@ -41,6 +41,75 @@ def signature_like(width: int = 900, height: int = 300) -> Image.Image:
     return image
 
 
+def signature_photo(
+    width: int = 2400,
+    height: int = 1600,
+    ink: tuple[int, int, int] = (25, 45, 150),
+    paper: tuple[int, int, int] = (236, 228, 205),
+    shadow: float = 0.45,
+    specks: int = 60,
+    stroke: int = 9,
+    dot: bool = True,
+) -> Image.Image:
+    """A phone photo of a signature: tinted paper, a shadow across one side,
+    sensor noise, dust specks and a looping stroke in (blue) ink.
+
+    The ink spans the middle of the photo; ``dot`` adds an "i"-dot that the
+    speck remover must keep.
+    """
+    import math
+    import random
+
+    rng = random.Random(7)
+    image = Image.new("RGB", (width, height), paper)
+    draw = ImageDraw.Draw(image)
+
+    # Looping cursive stroke across the middle 60 % of the width.
+    x0, x1 = int(width * 0.2), int(width * 0.8)
+    mid = height / 2
+    points = []
+    for i in range(400):
+        t = i / 399
+        x = x0 + (x1 - x0) * t + math.sin(t * 22) * width * 0.02
+        y = mid + math.sin(t * 9) * height * 0.12 + math.cos(t * 31) * height * 0.05
+        points.append((x, y))
+    draw.line(points, fill=ink, width=stroke, joint="curve")
+    # Underline flourish.
+    draw.line([(x0, mid + height * 0.2), (x1, mid + height * 0.17)], fill=ink, width=max(2, stroke - 3))
+    if dot:
+        cx, cy = x0 + (x1 - x0) * 0.55, mid - height * 0.22
+        r = stroke * 0.9
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=ink)
+
+    image = image.filter(ImageFilter.GaussianBlur(1.2))  # soft camera focus
+
+    # Shadow: a soft-edged shadow (like the phone's) over the lower left.
+    if shadow > 0:
+        mask = Image.new("L", (width, height), 0)
+        ImageDraw.Draw(mask).polygon(
+            [(0, height * 0.35), (width * 0.75, height), (0, height)], fill=int(255 * shadow)
+        )
+        mask = mask.filter(ImageFilter.GaussianBlur(max(width, height) * 0.02))
+        gradient = Image.linear_gradient("L").resize((width, height)).point(lambda v: int(v * shadow * 0.5))
+        dark = Image.new("RGB", (width, height), (0, 0, 0))
+        image = Image.composite(dark, image, mask)
+        image = Image.composite(dark, image, gradient)  # light falls off top to bottom
+
+    noise = Image.effect_noise((width, height), 18).convert("RGB")
+    image = Image.blend(image, noise, 0.06)
+
+    draw = ImageDraw.Draw(image)
+    for _ in range(specks):
+        sx, sy = rng.randrange(width), rng.randrange(height)
+        draw.point((sx, sy), fill=(60, 60, 60))
+    return image
+
+
+def blank_paper(width: int = 1600, height: int = 1000) -> Image.Image:
+    """Tinted paper with a shadow and noise, but no ink."""
+    return signature_photo(width, height, specks=0, shadow=0.35, stroke=0, dot=False).point(lambda v: v)
+
+
 def halves(width: int = 400, height: int = 200) -> Image.Image:
     """Left half red, right half blue (to check crops and rotation)."""
     image = Image.new("RGB", (width, height), (220, 30, 30))

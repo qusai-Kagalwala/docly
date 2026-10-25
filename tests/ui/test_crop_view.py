@@ -110,3 +110,71 @@ def test_paints_in_both_themes(view: CropView, theme_manager) -> None:
     assert not view.grab().isNull()
     theme_manager.toggle()
     assert not view.grab().isNull()
+
+
+# ----- free "select area" mode ------------------------------------------
+@pytest.fixture
+def free_view(view: CropView) -> CropView:
+    view.set_free()
+    return view
+
+
+def test_free_mode_starts_as_whole_image(free_view: CropView) -> None:
+    assert free_view.free
+    assert free_view.display_box == QRectF(0, 0, 1200, 800)
+    assert free_view.is_whole_image
+    assert free_view.crop_box() == CropBox(0, 0, 2400, 1600)
+
+
+def test_free_mode_drag_left_edge(qtbot, free_view: CropView) -> None:
+    edge = widget_point(free_view, 0, 400)
+    target = widget_point(free_view, 300, 400)
+    with qtbot.waitSignal(free_view.cropChanged, timeout=1000):
+        qtbot.mousePress(free_view, Qt.MouseButton.LeftButton, pos=edge)
+        qtbot.mouseMove(free_view, target)
+        qtbot.mouseRelease(free_view, Qt.MouseButton.LeftButton, pos=target)
+    box = free_view.display_box
+    assert box.left() == pytest.approx(300, abs=2)
+    assert box.right() == pytest.approx(1200) and box.height() == pytest.approx(800)  # other edges untouched
+    assert not free_view.is_whole_image
+
+
+def test_free_mode_corner_changes_two_edges_without_ratio(qtbot, free_view: CropView) -> None:
+    corner = widget_point(free_view, 1200, 800)
+    target = widget_point(free_view, 900, 300)
+    qtbot.mousePress(free_view, Qt.MouseButton.LeftButton, pos=corner)
+    qtbot.mouseMove(free_view, target)
+    qtbot.mouseRelease(free_view, Qt.MouseButton.LeftButton, pos=target)
+    box = free_view.display_box
+    assert box.right() == pytest.approx(900, abs=2)
+    assert box.bottom() == pytest.approx(300, abs=2)
+    assert box.width() / box.height() != pytest.approx(1200 / 800, abs=0.05)
+
+
+def test_free_mode_edges_stay_inside_and_apart(qtbot, free_view: CropView) -> None:
+    edge = widget_point(free_view, 0, 400)
+    far_right = QPoint(free_view.width() + 400, widget_point(free_view, 0, 400).y())
+    qtbot.mousePress(free_view, Qt.MouseButton.LeftButton, pos=edge)
+    qtbot.mouseMove(free_view, far_right)
+    qtbot.mouseRelease(free_view, Qt.MouseButton.LeftButton, pos=far_right)
+    box = free_view.display_box
+    assert box.width() >= 24  # never collapses
+    assert box.right() <= 1200
+
+
+def test_free_mode_move_after_shrinking(qtbot, free_view: CropView) -> None:
+    free_view._box = QRectF(100, 100, 400, 300)  # as if the user had shrunk it
+    free_view.move_box(50, 0)
+    assert free_view.display_box.x() == pytest.approx(150)
+
+
+def test_free_mode_reset(free_view: CropView) -> None:
+    free_view._box = QRectF(100, 100, 400, 300)
+    free_view.reset()
+    assert free_view.is_whole_image
+
+
+def test_switching_back_to_ratio_mode(free_view: CropView) -> None:
+    free_view.set_ratio(1.0)
+    assert not free_view.free
+    assert free_view.display_box == QRectF(200, 0, 800, 800)

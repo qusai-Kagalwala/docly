@@ -27,6 +27,10 @@ class CorruptImageError(DoclyError):
     """The file looks like an image but is damaged, truncated or empty."""
 
 
+class NoInkFoundError(DoclyError):
+    """The signature cleaner found nothing that looks like ink."""
+
+
 class CancelledError(DoclyError):
     """The user cancelled the operation."""
 

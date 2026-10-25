@@ -21,7 +21,7 @@ def test_pyproject_reads_version_from_package() -> None:
     pyproject = tomllib.loads((config.BASE_DIR / "pyproject.toml").read_text(encoding="utf-8"))
     assert "version" in pyproject["project"]["dynamic"]
     assert pyproject["tool"]["setuptools"]["dynamic"]["version"]["attr"] == "docly.__version__"
-    assert pyproject["project"]["requires-python"] == ">=3.11"
+    assert pyproject["project"]["requires-python"] == ">=3.12"
 
 
 def test_assets_exist() -> None:

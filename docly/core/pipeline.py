@@ -1,9 +1,10 @@
-"""Photo pipeline: load → crop/resize → compress → validate.
+"""Pipelines: load → (clean) → crop/resize → compress → validate.
 
 Also runnable as a small command-line demo, so the engine can be tried on
 real photos before the UI exists::
 
     python -m docly.core.pipeline photo.jpg in-ibps-photo
+    python -m docly.core.pipeline sign.jpg in-ibps-signature --signature
 
 The processed copy is saved next to the original (never over it).
 """
@@ -19,7 +20,8 @@ from docly.core.compress import CancelCheck, CompressResult, compress_to_target
 from docly.core.errors import DoclyError
 from docly.core.files import safe_stem, write_new_file
 from docly.core.image_io import LoadedImage, load_image
-from docly.core.resize import CropBox, fit_to_preset
+from docly.core.resize import CropBox, FitResult, fit_to_preset, pad_to_ratio
+from docly.core.signature import CleanOptions, clean_signature, thicken_for_scale
 from docly.core.validate import ValidationReport, validate_bytes
 from docly.presets.models import FileFormat, Preset, PresetKind
 
@@ -70,8 +72,7 @@ def process_image(
     can't be loaded or the user cancels. A missed size target is *not* an
     error: check :attr:`ProcessResult.passed` and the report.
     """
-    if preset.kind == PresetKind.DOCUMENT:
-        raise ValueError(f"{preset.id} is a document preset; use the PDF tools.")
+    _require_image_preset(preset)
     loaded = load_image(path)
     return process_loaded(loaded, preset, crop, fmt, cancel)
 
@@ -85,14 +86,67 @@ def process_loaded(
 ) -> ProcessResult:
     """Same as :func:`process_image` for an image that is already loaded
     (the Photo page loads once and re-runs this when the crop changes)."""
-    chosen = fmt or preset.formats[0]
+    _require_image_preset(preset)
+    notes = _load_notes(loaded)
+    fitted = fit_to_preset(loaded.image, preset, crop)
+    return _finish(loaded, preset, fitted, fmt, cancel, notes)
+
+
+def process_signature(
+    loaded: LoadedImage,
+    preset: Preset,
+    options: CleanOptions = CleanOptions(),
+    area: CropBox | None = None,
+    fmt: FileFormat | None = None,
+    cancel: CancelCheck | None = None,
+) -> ProcessResult:
+    """Clean a signature (or other ink on paper), then fit and compress it.
+
+    ``area`` limits cleaning to part of the photo. The preset's ratio is
+    reached by adding white space, never by cutting the signature.
+    Raises :class:`~docly.core.errors.NoInkFoundError` on a blank page.
+    """
+    _require_image_preset(preset)
+    notes = _load_notes(loaded)
+    cleaned = clean_signature(loaded.image, options, area, cancel)
+    notes.extend(cleaned.notes)
+    fitted = fit_to_preset(cleaned.image, preset, mode="pad")
+
+    # If the preset shrinks the signature a lot, thicken the strokes first so
+    # they stay dark instead of turning pale grey.
+    base = pad_to_ratio(cleaned.image, preset.ratio) if preset.ratio else cleaned.image
+    output_scale = fitted.image.width / base.width
+    thick, changed = thicken_for_scale(cleaned.image, cleaned.stroke_width, output_scale)
+    if changed:
+        fitted = fit_to_preset(thick, preset, mode="pad")
+        notes.append("Strokes were thickened slightly so they stay clear at this small size.")
+    return _finish(loaded, preset, fitted, fmt, cancel, notes)
+
+
+def _require_image_preset(preset: Preset) -> None:
+    if preset.kind == PresetKind.DOCUMENT:
+        raise ValueError(f"{preset.id} is a document preset; use the PDF tools.")
+
+
+def _load_notes(loaded: LoadedImage) -> list[str]:
     notes: list[str] = []
     if loaded.reduced:
         notes.append("Very large photo: opened at reduced resolution to save memory.")
     if loaded.rotated:
         notes.append("Rotated upright using the camera's orientation tag.")
+    return notes
 
-    fitted = fit_to_preset(loaded.image, preset, crop)
+
+def _finish(
+    loaded: LoadedImage,
+    preset: Preset,
+    fitted: FitResult,
+    fmt: FileFormat | None,
+    cancel: CancelCheck | None,
+    notes: list[str],
+) -> ProcessResult:
+    """Compress, validate and package the result (shared by all pipelines)."""
+    chosen = fmt or preset.formats[0]
     notes.extend(fitted.notes)
     compressed = compress_to_target(fitted.image, preset, chosen, cancel)
     if compressed.message:
@@ -127,6 +181,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("image", type=Path, help="photo or scan to process")
     parser.add_argument("preset", nargs="?", help="preset id, e.g. in-ibps-photo (omit to list them)")
     parser.add_argument("--out", type=Path, help="folder for the result (default: next to the image)")
+    cleaning = parser.add_argument_group("signature cleaning")
+    cleaning.add_argument("--signature", action="store_true", help="clean ink on paper before fitting")
+    cleaning.add_argument("--strength", type=int, default=50, help="0–100 (default 50)")
+    cleaning.add_argument("--black-ink", action="store_true", help="make the ink black")
+    cleaning.add_argument("--no-trim", action="store_true", help="keep the margins")
+    cleaning.add_argument("--keep-specks", action="store_true", help="don't remove small specks")
     args = parser.parse_args(argv)
 
     presets = default_presets()
@@ -141,7 +201,16 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        result = process_image(args.image, preset)
+        if args.signature:
+            options = CleanOptions(
+                strength=max(0, min(100, args.strength)),
+                remove_specks=not args.keep_specks,
+                trim=not args.no_trim,
+                black_ink=args.black_ink,
+            )
+            result = process_signature(load_image(args.image), preset, options)
+        else:
+            result = process_image(args.image, preset)
         folder = args.out or args.image.resolve().parent
         saved = write_new_file(folder, result.suggested_name, result.data)
     except DoclyError as exc:

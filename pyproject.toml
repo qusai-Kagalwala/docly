@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "docly"
 dynamic = ["version"]
-description = "Offline Windows utility that makes photos, signatures and PDFs upload-ready for Indian government, exam and admission portals."
+description = "Offline Windows utility that makes photos, signatures and PDFs upload-ready for government, exam, visa and admission portals."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [{ name = "Qusai Kagalwala" }]
 dependencies = [

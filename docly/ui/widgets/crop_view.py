@@ -1,8 +1,15 @@
-"""Photo preview with a ratio-locked crop frame.
+"""Photo preview with a crop frame.
+
+Two modes:
+
+* **ratio** (Photo page): the frame keeps the preset's width ÷ height; drag
+  inside to move it, drag a corner to resize it.
+* **free** (Signature page, "select area"): the frame starts as the whole
+  photo; drag any edge or corner to leave out the desk, page edge or text.
 
 The widget shows a reduced *display* copy of the photo (fast to paint) and
-keeps the crop box in display-image coordinates. :meth:`crop_box` converts
-it to full-resolution pixels for the engine.
+keeps the frame in display-image coordinates. :meth:`crop_box` converts it
+to full-resolution pixels for the engine.
 """
 
 from __future__ import annotations
@@ -38,7 +45,7 @@ class _Drag(Enum):
 
 
 class CropView(QWidget):
-    """Shows the photo; lets the user move/resize a ratio-locked frame.
+    """Shows the photo; lets the user move/resize a crop frame.
 
     Signals:
         cropChanged(): the user finished moving or resizing the frame.
@@ -60,9 +67,11 @@ class CropView(QWidget):
         self._image: QImage | None = None
         self._full_size: tuple[int, int] = (0, 0)
         self._ratio: float | None = None
+        self._free = False
         self._box = QRectF()  # display-image coordinates
         self._drag = _Drag.NONE
-        self._anchor = QPointF()  # fixed corner while resizing
+        self._anchor = QPointF()  # fixed corner while resizing (ratio mode)
+        self._edges: frozenset[str] = frozenset()  # edges being dragged (free mode)
         self._grab_offset = QPointF()  # mouse offset inside the box while moving
 
     # ----- public API -------------------------------------------------
@@ -79,12 +88,27 @@ class CropView(QWidget):
 
     def set_ratio(self, ratio: float | None) -> None:
         """Lock the frame to ``ratio`` (w ÷ h) and centre it; None = no crop."""
+        self._free = False
         self._ratio = ratio
         self.reset()
 
+    def set_free(self) -> None:
+        """Switch to "select area" mode: a free frame covering the photo."""
+        self._free = True
+        self._ratio = None
+        self.reset()
+
+    @property
+    def free(self) -> bool:
+        return self._free
+
     def reset(self) -> None:
-        """Largest centred frame with the current ratio."""
-        if self._image is None or self._ratio is None:
+        """Ratio mode: largest centred frame. Free mode: the whole photo."""
+        if self._image is None:
+            self._box = QRectF()
+        elif self._free:
+            self._box = QRectF(0, 0, self._image.width(), self._image.height())
+        elif self._ratio is None:
             self._box = QRectF()
         else:
             w, h = self._image.width(), self._image.height()
@@ -98,6 +122,13 @@ class CropView(QWidget):
     @property
     def has_crop(self) -> bool:
         return not self._box.isEmpty()
+
+    @property
+    def is_whole_image(self) -> bool:
+        """True when the frame covers the entire photo (nothing left out)."""
+        if self._image is None:
+            return True
+        return self._box == QRectF(0, 0, self._image.width(), self._image.height())
 
     @property
     def display_box(self) -> QRectF:
@@ -170,12 +201,13 @@ class CropView(QWidget):
             inner.addRect(box)
             painter.fillPath(outside.subtracted(inner), t.qcolor("shadow", 140))
 
-            painter.setPen(QPen(t.qcolor("surface", 110), 1))
-            for i in (1, 2):
-                x = box.left() + box.width() * i / 3
-                y = box.top() + box.height() * i / 3
-                painter.drawLine(QPointF(x, box.top()), QPointF(x, box.bottom()))
-                painter.drawLine(QPointF(box.left(), y), QPointF(box.right(), y))
+            if not self._free:  # rule-of-thirds guides help framing a face
+                painter.setPen(QPen(t.qcolor("surface", 110), 1))
+                for i in (1, 2):
+                    x = box.left() + box.width() * i / 3
+                    y = box.top() + box.height() * i / 3
+                    painter.drawLine(QPointF(x, box.top()), QPointF(x, box.bottom()))
+                    painter.drawLine(QPointF(box.left(), y), QPointF(box.right(), y))
 
             painter.setPen(QPen(t.qcolor("accent"), 2))
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -183,8 +215,13 @@ class CropView(QWidget):
 
             painter.setPen(QPen(t.qcolor("accent"), 1.5))
             painter.setBrush(t.qcolor("surface"))
-            for corner in (box.topLeft(), box.topRight(), box.bottomLeft(), box.bottomRight()):
-                painter.drawRect(QRectF(corner.x() - HANDLE / 2, corner.y() - HANDLE / 2, HANDLE, HANDLE))
+            handles = [box.topLeft(), box.topRight(), box.bottomLeft(), box.bottomRight()]
+            if self._free:
+                c = box.center()
+                handles += [QPointF(c.x(), box.top()), QPointF(c.x(), box.bottom()),
+                            QPointF(box.left(), c.y()), QPointF(box.right(), c.y())]  # fmt: skip
+            for point in handles:
+                painter.drawRect(QRectF(point.x() - HANDLE / 2, point.y() - HANDLE / 2, HANDLE, HANDLE))
 
             if self.hasFocus():
                 painter.setPen(QPen(t.qcolor("accent", 120), 1, Qt.PenStyle.DashLine))
@@ -197,11 +234,18 @@ class CropView(QWidget):
         if event.button() != Qt.MouseButton.LeftButton or self._box.isEmpty():
             return super().mousePressEvent(event)
         pos = event.position()
-        corner = self._corner_at(pos)
+        if self._free:
+            edges = self._edges_at(pos)
+            if edges:
+                self._drag = _Drag.RESIZE
+                self._edges = edges
+                event.accept()
+                return
+        corner = None if self._free else self._corner_at(pos)
         if corner is not None:
             self._drag = _Drag.RESIZE
             self._anchor = self._opposite(corner)
-        elif self._widget_box().contains(pos):
+        elif self._widget_box().contains(pos) and not self.is_whole_image:
             self._drag = _Drag.MOVE
             self._grab_offset = self.to_image(pos) - self._box.topLeft()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
@@ -215,7 +259,10 @@ class CropView(QWidget):
             self._clamp_inside()
             self.update()
         elif self._drag == _Drag.RESIZE:
-            self._resize_to(self.to_image(pos))
+            if self._free:
+                self._drag_edges(self.to_image(pos))
+            else:
+                self._resize_to(self.to_image(pos))
             self.update()
         else:
             self._update_cursor(pos)
@@ -261,6 +308,38 @@ class CropView(QWidget):
                 return corner_img
         return None
 
+    def _edges_at(self, pos: QPointF) -> frozenset[str]:
+        """Which frame edges are under the mouse (free mode)."""
+        box = self._widget_box()
+        inside_x = box.left() - HIT <= pos.x() <= box.right() + HIT
+        inside_y = box.top() - HIT <= pos.y() <= box.bottom() + HIT
+        edges: set[str] = set()
+        if inside_y and abs(pos.x() - box.left()) <= HIT:
+            edges.add("left")
+        elif inside_y and abs(pos.x() - box.right()) <= HIT:
+            edges.add("right")
+        if inside_x and abs(pos.y() - box.top()) <= HIT:
+            edges.add("top")
+        elif inside_x and abs(pos.y() - box.bottom()) <= HIT:
+            edges.add("bottom")
+        return frozenset(edges)
+
+    def _drag_edges(self, point: QPointF) -> None:
+        """Move the grabbed edges to ``point`` (free mode), inside the photo."""
+        assert self._image is not None
+        b = QRectF(self._box)
+        x = min(max(point.x(), 0.0), float(self._image.width()))
+        y = min(max(point.y(), 0.0), float(self._image.height()))
+        if "left" in self._edges:
+            b.setLeft(min(x, b.right() - MIN_BOX))
+        if "right" in self._edges:
+            b.setRight(max(x, b.left() + MIN_BOX))
+        if "top" in self._edges:
+            b.setTop(min(y, b.bottom() - MIN_BOX))
+        if "bottom" in self._edges:
+            b.setBottom(max(y, b.top() + MIN_BOX))
+        self._box = b
+
     def _opposite(self, corner: QPointF) -> QPointF:
         b = self._box
         x = b.left() if abs(corner.x() - b.right()) < 1e-6 else b.right()
@@ -298,6 +377,21 @@ class CropView(QWidget):
     def _update_cursor(self, pos: QPointF) -> None:
         if self._box.isEmpty():
             self.unsetCursor()
+            return
+        if self._free:
+            edges = self._edges_at(pos)
+            if edges in (frozenset({"left", "top"}), frozenset({"right", "bottom"})):
+                self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+            elif len(edges) == 2:
+                self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+            elif edges & {"left", "right"}:
+                self.setCursor(Qt.CursorShape.SizeHorCursor)
+            elif edges:
+                self.setCursor(Qt.CursorShape.SizeVerCursor)
+            elif self._widget_box().contains(pos) and not self.is_whole_image:
+                self.setCursor(Qt.CursorShape.OpenHandCursor)
+            else:
+                self.unsetCursor()
             return
         corner = self._corner_at(pos)
         if corner is not None:

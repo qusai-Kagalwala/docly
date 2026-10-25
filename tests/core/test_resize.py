@@ -86,3 +86,36 @@ def test_resize_by_respects_rules() -> None:
     assert resize_by(images.flat(600, 600), 0.5, US_VISA) is None  # already at the minimum
     tiny = resize_by(images.flat(400, 400), 0.01, KB_ONLY)
     assert tiny is not None and min(tiny.size) == 50  # never below MIN_SIDE
+
+
+# ----- pad mode (signatures) -------------------------------------------
+from docly.core.resize import pad_to_ratio  # noqa: E402
+
+
+def test_pad_to_ratio_never_cuts() -> None:
+    source = images.halves(400, 200)  # 2:1
+    padded = pad_to_ratio(source, 3.0)
+    assert padded.size == (600, 200)
+    assert padded.getpixel((50, 100)) == (255, 255, 255)  # new white margin
+    assert padded.getpixel((150, 100))[0] > 200  # red half intact
+    taller = pad_to_ratio(source, 1.0)
+    assert taller.size == (400, 400)
+    assert pad_to_ratio(source, 2.0) is source
+
+
+def test_fit_pad_mode_reaches_exact_size_without_losing_ink() -> None:
+    sig = images.signature_like(900, 500)  # not the preset's ratio
+    preset = images.preset(width_px=140, height_px=60, kb_max=20)
+    result = fit_to_preset(sig, preset, mode="pad")
+    assert result.image.size == (140, 60)
+    assert result.padded and not result.cropped
+
+
+def test_fit_pad_mode_ratio_only() -> None:
+    result = fit_to_preset(images.signature_like(900, 500), SSC_SIGNATURE, mode="pad")
+    assert result.image.size == (1500, 500)
+
+
+def test_unknown_mode() -> None:
+    with pytest.raises(ValueError):
+        fit_to_preset(images.flat(10, 10), IBPS, mode="stretch")

@@ -321,6 +321,32 @@ QFrame#OutputPreview {
     border-radius: 8px;
 }
 
+/* ---------- sliders ---------- */
+QSlider::groove:horizontal {
+    background: $surface_alt;
+    border: 1px solid $border;
+    height: 4px;
+    border-radius: 2px;
+}
+QSlider::sub-page:horizontal {
+    background: $accent;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    background: $surface;
+    border: 2px solid $accent;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0;
+    border-radius: 8px;
+}
+QSlider::handle:horizontal:hover {
+    background: $accent_tint;
+}
+QSlider:focus {
+    outline: none;
+}
+
 /* ---------- check boxes ---------- */
 QCheckBox {
     spacing: 8px;

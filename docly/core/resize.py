@@ -26,12 +26,16 @@ class CropBox:
         return (self.x, self.y, self.x + self.w, self.y + self.h)
 
 
+WHITE = (255, 255, 255)
+
+
 @dataclass
 class FitResult:
     """Image after cropping/resizing, plus what was done to it."""
 
     image: Image.Image
     cropped: bool = False
+    padded: bool = False
     upscaled: bool = False
     notes: list[str] = field(default_factory=list)
 
@@ -78,12 +82,37 @@ def fit_crop_to_ratio(box: CropBox, ratio: float) -> CropBox:
     return CropBox(box.x, box.y + (box.h - new_h) // 2, box.w, new_h)
 
 
-def fit_to_preset(image: Image.Image, preset: Preset, crop: CropBox | None = None) -> FitResult:
-    """Crop to the preset's ratio, then resize to its pixel rules.
+def pad_to_ratio(image: Image.Image, ratio: float, fill: tuple[int, int, int] = WHITE) -> Image.Image:
+    """Extend ``image`` with ``fill`` (centred) until width ÷ height == ratio.
 
-    ``crop`` is the user's chosen area (from the Phase 4 crop widget); it is
-    adjusted to the preset's ratio. Without one, the crop is centred.
+    Nothing is cut off, which matters for signatures.
     """
+    width, height = image.size
+    if abs(width / height - ratio) < 1e-6:
+        return image
+    if width / height < ratio:  # too tall: add width
+        new_w, new_h = max(width, round(height * ratio)), height
+    else:  # too wide: add height
+        new_w, new_h = width, max(height, round(width / ratio))
+    canvas = Image.new("RGB", (new_w, new_h), fill)
+    canvas.paste(image.convert("RGB"), ((new_w - width) // 2, (new_h - height) // 2))
+    return canvas
+
+
+def fit_to_preset(
+    image: Image.Image,
+    preset: Preset,
+    crop: CropBox | None = None,
+    mode: str = "crop",
+) -> FitResult:
+    """Match the preset's ratio, then resize to its pixel rules.
+
+    ``mode="crop"`` (photos) trims the image to the ratio; ``crop`` is the
+    user's chosen area, adjusted to the ratio, or a centred box if None.
+    ``mode="pad"`` (signatures) adds white space instead, so nothing is lost.
+    """
+    if mode not in ("crop", "pad"):
+        raise ValueError(f"Unknown fit mode: {mode}")
     result = FitResult(image)
     width, height = image.size
     ratio = preset.ratio
@@ -91,11 +120,15 @@ def fit_to_preset(image: Image.Image, preset: Preset, crop: CropBox | None = Non
     box: CropBox | None = None
     if crop is not None:
         box = clamp_crop(crop, width, height)
-    if ratio is not None:
+    if mode == "crop" and ratio is not None:
         box = fit_crop_to_ratio(box, ratio) if box else centered_crop(width, height, ratio)
     if box is not None and box != CropBox(0, 0, width, height):
         result.image = image.crop(box.as_pil())
         result.cropped = True
+    if mode == "pad" and ratio is not None:
+        padded = pad_to_ratio(result.image, ratio)
+        result.padded = padded is not result.image
+        result.image = padded
 
     current = result.image.size
     target = _target_size(current, preset)
