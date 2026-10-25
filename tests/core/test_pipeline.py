@@ -143,3 +143,23 @@ def test_cli_signature(tmp_path: Path, capsys) -> None:
     assert code == 0
     assert (tmp_path / "o" / "sign_in-ibps-signature.jpg").exists()
     assert "Ready to upload" in capsys.readouterr().out
+
+
+def test_transparent_preset_gives_rgba_png(signature_loaded) -> None:
+    import io as _io
+
+    from PIL import Image as PILImage
+
+    preset = next(p for p in BUNDLED if p.id == "intl-signature-transparent")
+    result = process_signature(signature_loaded, preset, CleanOptions(transparent=True))
+    assert result.passed and result.format.value == "png"
+    with PILImage.open(_io.BytesIO(result.data)) as out:
+        assert out.mode in ("RGBA", "P")
+        assert out.convert("RGBA").getpixel((0, 0))[3] == 0
+
+
+def test_transparent_request_with_jpg_falls_back_to_white(signature_loaded) -> None:
+    ibps = next(p for p in BUNDLED if p.id == "in-ibps-signature")
+    result = process_signature(signature_loaded, ibps, CleanOptions(transparent=True))
+    assert result.passed
+    assert any("JPG can't be transparent" in note for note in result.notes)

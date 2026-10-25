@@ -129,3 +129,26 @@ def test_blank_page_message(qtbot, page: SignaturePage, tmp_path: Path) -> None:
 def test_main_window_has_signature_page(main_window) -> None:
     main_window.show_page("signature")
     assert isinstance(main_window.pages[1], SignaturePage)
+
+
+# ----- transparent option (Phase 5b) ------------------------------------
+def test_transparent_option_only_for_png(page: SignaturePage) -> None:
+    page.picker.select("in-ibps-signature")
+    assert not page.transparent.isVisibleTo(page)
+    page.picker.select("intl-signature")  # JPG or PNG, starts on JPG
+    assert not page.transparent.isVisibleTo(page)
+    page.format_switch.buttons["png"].click()
+    assert page.transparent.isVisibleTo(page)
+    page.transparent.setChecked(True)
+    assert page.options().transparent
+    page.format_switch.buttons["jpg"].click()
+    assert not page.options().transparent  # ignored for JPG
+
+
+def test_png_only_preset_starts_transparent(qtbot, page: SignaturePage, signature_file: Path) -> None:
+    page.picker.select("intl-signature-transparent")
+    assert page.transparent.isVisibleTo(page) and page.transparent.isChecked()
+    loaded_page(qtbot, page, signature_file, "intl-signature-transparent")
+    assert page.cleaned_view.image is not None and page.cleaned_view.image.hasAlphaChannel()
+    saved = page.result_card.save()
+    assert saved is not None and saved.suffix == ".png"

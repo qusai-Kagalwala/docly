@@ -22,6 +22,10 @@ from docly.ui.widgets.image_preview import ImagePreview
 from docly.ui.widgets.segmented import SegmentedControl
 
 AREA_HINT = "Drag the edges to leave out the desk or page edges."
+TRANSPARENT_TIP = (
+    "Make the paper see-through, for placing your signature on documents and PDFs. "
+    "Most portals want a white background, so leave this off for uploads."
+)
 STRENGTH_TIP = (
     "Low keeps faint or pencil strokes. High removes stubborn shadows and grey paper, "
     "but can thin very light strokes."
@@ -103,10 +107,12 @@ class SignaturePage(ImageToolPage):
         self.remove_specks.setToolTip("Remove dust, paper grain and tiny dots that aren't part of the signature.")
         self.trim = QCheckBox("Trim margins")
         self.trim.setChecked(True)
-        self.trim.setToolTip("Cut away empty paper and leave an even white border.")
+        self.trim.setToolTip("Cut away empty paper and leave an even border.")
         self.black_ink = QCheckBox("Make ink black")
         self.black_ink.setToolTip("Many portals ask for black ink. This changes only the colour, not the shape.")
-        for box in (self.remove_specks, self.trim, self.black_ink):
+        self.transparent = QCheckBox("Transparent background")
+        self.transparent.setToolTip(TRANSPARENT_TIP)
+        for box in (self.remove_specks, self.trim, self.black_ink, self.transparent):
             card.body.addWidget(box)
             box.toggled.connect(self.schedule)
 
@@ -123,7 +129,7 @@ class SignaturePage(ImageToolPage):
         card.body.addWidget(self.format_row)
 
         self.strength.valueChanged.connect(self._on_strength)
-        self.format_switch.valueChanged.connect(lambda _value: self.schedule())
+        self.format_switch.valueChanged.connect(self._on_format)
         return card
 
     def configure_crop(self, preset: Preset | None) -> None:
@@ -147,6 +153,10 @@ class SignaturePage(ImageToolPage):
         self.format_row.setVisible(offers_png)
         if preset is not None and not offers_png:
             self.format_switch.set_value(preset.formats[0].value)
+        if preset is not None and preset.formats == (FileFormat.PNG,):
+            # A PNG-only signature preset (e.g. "transparent PNG"): start see-through.
+            self.transparent.setChecked(True)
+        self._update_transparent_option()
 
     def on_result(self, result: ProcessResult) -> None:
         self.cleaned_view.set_data(result.data)
@@ -164,6 +174,7 @@ class SignaturePage(ImageToolPage):
             remove_specks=self.remove_specks.isChecked(),
             trim=self.trim.isChecked(),
             black_ink=self.black_ink.isChecked(),
+            transparent=self.transparent.isChecked() and self.output_format() == FileFormat.PNG,
         )
 
     def output_format(self) -> FileFormat | None:
@@ -176,3 +187,11 @@ class SignaturePage(ImageToolPage):
     def _on_strength(self, value: int) -> None:
         self.strength_value.setText(str(value))
         self.schedule()
+
+    def _on_format(self, _value: str) -> None:
+        self._update_transparent_option()
+        self.schedule()
+
+    def _update_transparent_option(self) -> None:
+        """Transparency needs PNG, so the option only shows for PNG output."""
+        self.transparent.setVisible(self.output_format() == FileFormat.PNG)

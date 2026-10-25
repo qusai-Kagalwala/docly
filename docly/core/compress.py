@@ -138,6 +138,8 @@ def compress_to_target(
         raise ValueError(f"Preset {preset.id} does not accept {chosen.value}")
     if chosen == FileFormat.PDF:
         raise ValueError("PDF output is handled by the PDF engine")
+    if chosen == FileFormat.JPG and image.mode != "RGB":
+        image = _flatten_on_white(image)  # JPEG has no transparency
     encoder = _Encoder(chosen, preset.dpi, cancel)
     window = byte_window(preset)
     if chosen == FileFormat.PNG:
@@ -286,7 +288,7 @@ def _compress_png(image: Image.Image, preset: Preset, window: ByteWindow, enc: _
 
     if window.high is not None and len(data) > window.high:
         for colours in PNG_COLOURS:
-            quantized = current.quantize(colors=colours, method=Image.Quantize.MEDIANCUT)
+            quantized = _quantize(current, colours)
             data = enc.png(quantized)
             candidate_image = quantized
             if len(data) <= window.high:
@@ -298,7 +300,7 @@ def _compress_png(image: Image.Image, preset: Preset, window: ByteWindow, enc: _
             if smaller is None:
                 break
             current, shrunk, shrinks = smaller, True, shrinks + 1
-            candidate_image = current.quantize(colors=PNG_COLOURS[-1], method=Image.Quantize.MEDIANCUT)
+            candidate_image = _quantize(current, PNG_COLOURS[-1])
             data = enc.png(candidate_image)
         if len(data) > window.high:
             return _result(data, FileFormat.PNG, current, None, False, enc, shrunk=shrunk,
@@ -313,6 +315,22 @@ def _compress_png(image: Image.Image, preset: Preset, window: ByteWindow, enc: _
                        shrunk=shrunk, padded=True,
                        message="Padded the file to meet the minimum size; the picture is unchanged.")
     return _result(data, FileFormat.PNG, current, None, window.fits(len(data)), enc, shrunk=shrunk)
+
+
+def _flatten_on_white(image: Image.Image) -> Image.Image:
+    if image.mode in ("RGBA", "LA", "PA") or "transparency" in image.info:
+        rgba = image.convert("RGBA")
+        background = Image.new("RGB", rgba.size, (255, 255, 255))
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        return background
+    return image.convert("RGB")
+
+
+def _quantize(image: Image.Image, colours: int) -> Image.Image:
+    """Reduce to a palette. Transparent images need the octree method,
+    which keeps the alpha channel; median cut only handles RGB."""
+    method = Image.Quantize.FASTOCTREE if image.mode == "RGBA" else Image.Quantize.MEDIANCUT
+    return image.quantize(colors=colours, method=method)
 
 
 # ----------------------------------------------------------------------

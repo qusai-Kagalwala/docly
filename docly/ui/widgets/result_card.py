@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QImage, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -25,6 +25,7 @@ from docly.logger import get_logger
 from docly.ui import desktop
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
+from docly.ui.widgets.image_preview import ImagePreview
 from docly.ui.widgets.style import set_style_prop
 
 log = get_logger(__name__)
@@ -267,6 +268,15 @@ class ResultCard(Card):
         pixmap = QPixmap.fromImage(image).scaled(
             PREVIEW_SIZE, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
         )
+        if image.hasAlphaChannel():
+            # Show see-through areas on a light checkerboard, not the card colour,
+            # so dark ink stays visible in dark mode.
+            backed = QPixmap(pixmap.size())
+            painter = QPainter(backed)
+            ImagePreview.paint_checkerboard(painter, QRectF(backed.rect()))
+            painter.drawPixmap(0, 0, pixmap)
+            painter.end()
+            pixmap = backed
         self.preview.setPixmap(pixmap)
         self.preview_frame.show()
 

@@ -38,6 +38,23 @@
       "tags": ["signature", "generic"]
     },
     {
+      "id": "intl-signature-transparent",
+      "name": "Signature — transparent PNG",
+      "portal": "Docly",
+      "region": "INTL",
+      "category": "general",
+      "kind": "signature",
+      "max_width_px": 1600,
+      "max_height_px": 800,
+      "kb_max": 500,
+      "formats": ["png"],
+      "notes": "Ink on a see-through background, for placing on documents, letters and PDFs. Most portals want JPG instead; use their own preset for uploads.",
+      "source": "",
+      "last_verified": null,
+      "verified": true,
+      "tags": ["signature", "transparent", "png", "sign pdf", "document"]
+    },
+    {
       "id": "intl-doc-200kb",
       "name": "Document — PDF up to 200 KB",
       "portal": "Docly",

@@ -119,3 +119,15 @@ def test_fit_pad_mode_ratio_only() -> None:
 def test_unknown_mode() -> None:
     with pytest.raises(ValueError):
         fit_to_preset(images.flat(10, 10), IBPS, mode="stretch")
+
+
+def test_pad_transparent_image_stays_transparent() -> None:
+    from PIL import Image as PILImage
+
+    sig = PILImage.new("RGBA", (300, 100), (10, 20, 90, 0))
+    sig.paste((10, 20, 90, 255), (100, 40, 200, 60))
+    padded = pad_to_ratio(sig, 1.0)
+    assert padded.mode == "RGBA" and padded.size == (300, 300)
+    assert padded.getpixel((150, 10))[3] == 0  # new area is see-through
+    assert padded.getpixel((150, 10))[:3] == (10, 20, 90)  # ink-coloured, so no halo when resized
+    assert padded.getpixel((150, 150))[3] == 255

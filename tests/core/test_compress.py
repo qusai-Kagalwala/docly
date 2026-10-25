@@ -119,3 +119,26 @@ def test_cancel_stops_work() -> None:
 def test_format_must_be_allowed() -> None:
     with pytest.raises(ValueError):
         compress_to_target(images.flat(10, 10), IBPS, FileFormat.PNG)
+
+
+def test_transparent_png_keeps_alpha_when_reducing_colours() -> None:
+    sig = images.signature_like(900, 300).convert("RGBA")
+    pixels = sig.load()
+    for x in range(sig.width):
+        for y in range(sig.height):
+            r, g, b, _ = pixels[x, y]
+            pixels[x, y] = (r, g, b, 0 if r > 200 else 255)
+    preset = images.preset(kind=PresetKind.SIGNATURE, formats=(FileFormat.PNG,), kb_max=8)
+    result = compress_to_target(sig, preset)
+    assert result.hit_target
+    with Image.open(io.BytesIO(result.data)) as out:
+        rgba = out.convert("RGBA")
+        assert rgba.getpixel((0, 0))[3] == 0
+
+
+def test_transparent_image_saved_as_jpeg_goes_on_white() -> None:
+    clear = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+    result = compress_to_target(clear, images.preset(kb_max=50))
+    with Image.open(io.BytesIO(result.data)) as out:
+        assert out.mode == "RGB"
+        assert min(out.getpixel((50, 50))) >= 250

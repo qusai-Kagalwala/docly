@@ -11,7 +11,8 @@ Steps (all on a working copy; the original is never changed):
    low keeps faint pencil, high wipes out stubborn shadows.
 4. Remove specks: blobs much smaller than a pen stroke.
 5. Trim to the ink plus an even white margin.
-6. Paint the ink back on white, keeping its colour or making it black.
+6. Paint the ink back on white (or on transparency), keeping its colour or
+   making it black.
 """
 
 from __future__ import annotations
@@ -53,13 +54,14 @@ class CleanOptions:
     remove_specks: bool = True
     trim: bool = True
     black_ink: bool = False
+    transparent: bool = False  # RGBA output: paper becomes see-through (PNG only)
 
 
 @dataclass
 class CleanResult:
     """The cleaned image and what happened."""
 
-    image: Image.Image  # RGB, ink on white
+    image: Image.Image  # RGB ink on white, or RGBA ink on transparency
     ink_box: tuple[int, int, int, int]  # x, y, w, h of the ink in ``image``
     scale: float  # working-copy pixels per original pixel (≤ 1)
     stroke_width: float = 2.0  # typical pen stroke in ``image`` pixels
@@ -112,8 +114,13 @@ def clean_signature(
         ink = np.zeros_like(normalised, dtype=np.float32)
     else:
         ink = normalised.astype(np.float32) * KEEP_COLOUR_DARKEN
-    a = alpha[..., None]
-    painted = (255.0 * (1.0 - a) + ink * a).clip(0, 255).astype(np.uint8)
+    if options.transparent:
+        painted = _paint_transparent(ink, alpha)
+        mode = "RGBA"
+    else:
+        a = alpha[..., None]
+        painted = (255.0 * (1.0 - a) + ink * a).clip(0, 255).astype(np.uint8)
+        mode = "RGB"
 
     notes: list[str] = []
     if options.trim:
@@ -127,7 +134,7 @@ def clean_signature(
     if removed:
         notes.append(f"Removed {removed} speck{'s' if removed != 1 else ''} of dust or noise.")
 
-    return CleanResult(Image.fromarray(painted, "RGB"), ink_box, scale, stroke, removed, notes)
+    return CleanResult(Image.fromarray(painted, mode), ink_box, scale, stroke, removed, notes)
 
 
 def thicken_for_scale(image: Image.Image, stroke_width: float, output_scale: float) -> tuple[Image.Image, bool]:
@@ -144,6 +151,12 @@ def thicken_for_scale(image: Image.Image, stroke_width: float, output_scale: flo
     if radius < 1:
         return image, False
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * radius + 1, 2 * radius + 1))
+    if image.mode == "RGBA":
+        # Transparent output: grow the ink's opacity (the colour is already
+        # ink-coloured everywhere, see _paint_transparent).
+        rgba = np.asarray(image).copy()
+        rgba[..., 3] = cv2.dilate(rgba[..., 3], kernel)
+        return Image.fromarray(rgba, "RGBA"), True
     # Erosion takes the darkest neighbour, so dark ink grows into white paper.
     thick = cv2.erode(np.asarray(image.convert("RGB")), kernel)
     return Image.fromarray(thick, "RGB"), True
@@ -238,10 +251,34 @@ def _stroke_width(alpha: np.ndarray) -> float:
     return 2.0 * float(np.median(values)) if values.size else 2.0
 
 
+def _paint_transparent(ink: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Ink colour in RGB, ink amount as opacity.
+
+    Edge pixels in the photo are a mix of ink and paper, so their colour is
+    too pale; on a dark page they would show a light halo. Each pixel takes
+    the darkest ink colour near it instead. Fully transparent pixels get the
+    *average ink colour*, so resizing later can't blend white into the edges.
+    """
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+    ink = cv2.erode(ink.astype(np.float32), kernel)  # darkest neighbour per channel
+    solid = alpha > 0.5
+    average = ink[solid].mean(axis=0) if solid.any() else np.zeros(3, dtype=np.float32)
+    rgb = np.where((alpha > 0)[..., None], ink, average).clip(0, 255).astype(np.uint8)
+    opacity = (alpha * 255.0).round().clip(0, 255).astype(np.uint8)
+    return np.dstack([rgb, opacity])
+
+
 def _trim(painted: np.ndarray, ink: tuple[int, int, int, int]) -> tuple[np.ndarray, tuple[int, int, int, int]]:
-    """Crop to the ink plus an even white margin (extending past the edge if needed)."""
+    """Crop to the ink plus an even margin (extending past the edge if needed).
+
+    The margin is white for RGB output and fully transparent for RGBA.
+    """
     x, y, w, h = ink
     margin = max(MIN_MARGIN, int(round(MARGIN_FRACTION * max(w, h))))
-    canvas = np.full((h + 2 * margin, w + 2 * margin, 3), 255, dtype=np.uint8)
+    channels = painted.shape[2]
+    canvas = np.full((h + 2 * margin, w + 2 * margin, channels), 255, dtype=np.uint8)
+    if channels == 4:
+        canvas[..., :3] = painted[..., :3].reshape(-1, 3)[0]  # ink colour, see _paint_transparent
+        canvas[..., 3] = 0
     canvas[margin : margin + h, margin : margin + w] = painted[y : y + h, x : x + w]
     return canvas, (margin, margin, w, h)

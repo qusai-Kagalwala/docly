@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from docly.core.compress import CancelCheck, CompressResult, compress_to_target
@@ -108,6 +108,10 @@ def process_signature(
     """
     _require_image_preset(preset)
     notes = _load_notes(loaded)
+    chosen = fmt or preset.formats[0]
+    if options.transparent and chosen != FileFormat.PNG:
+        options = replace(options, transparent=False)
+        notes.append("JPG can't be transparent, so the background is white. Choose PNG for transparency.")
     cleaned = clean_signature(loaded.image, options, area, cancel)
     notes.extend(cleaned.notes)
     fitted = fit_to_preset(cleaned.image, preset, mode="pad")
@@ -120,7 +124,7 @@ def process_signature(
     if changed:
         fitted = fit_to_preset(thick, preset, mode="pad")
         notes.append("Strokes were thickened slightly so they stay clear at this small size.")
-    return _finish(loaded, preset, fitted, fmt, cancel, notes)
+    return _finish(loaded, preset, fitted, chosen, cancel, notes)
 
 
 def _require_image_preset(preset: Preset) -> None:

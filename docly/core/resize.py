@@ -85,7 +85,8 @@ def fit_crop_to_ratio(box: CropBox, ratio: float) -> CropBox:
 def pad_to_ratio(image: Image.Image, ratio: float, fill: tuple[int, int, int] = WHITE) -> Image.Image:
     """Extend ``image`` with ``fill`` (centred) until width ÷ height == ratio.
 
-    Nothing is cut off, which matters for signatures.
+    Nothing is cut off, which matters for signatures. Images with
+    transparency (RGBA) are extended with fully transparent pixels instead.
     """
     width, height = image.size
     if abs(width / height - ratio) < 1e-6:
@@ -94,8 +95,14 @@ def pad_to_ratio(image: Image.Image, ratio: float, fill: tuple[int, int, int] = 
         new_w, new_h = max(width, round(height * ratio)), height
     else:  # too wide: add height
         new_w, new_h = width, max(height, round(width / ratio))
+    offset = ((new_w - width) // 2, (new_h - height) // 2)
+    if image.mode == "RGBA":
+        corner = image.getpixel((0, 0))
+        canvas = Image.new("RGBA", (new_w, new_h), (*corner[:3], 0))  # keep the colour, no halo
+        canvas.paste(image, offset)
+        return canvas
     canvas = Image.new("RGB", (new_w, new_h), fill)
-    canvas.paste(image.convert("RGB"), ((new_w - width) // 2, (new_h - height) // 2))
+    canvas.paste(image.convert("RGB"), offset)
     return canvas
 
 

@@ -6,16 +6,18 @@ from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import QImage, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from docly.ui.theme import ThemeManager, Tokens
+from docly.ui.theme import LIGHT, ThemeManager, Tokens
 
 PADDING = 12
+CHECKER = 8  # checkerboard square size, shows through transparent images
 
 
 class ImagePreview(QWidget):
     """Paints one image as large as fits, keeping its shape.
 
-    Used for the cleaned signature: it shows the *actual output file*, on
-    white like the upload will be, with a hairline so white edges are visible.
+    Used for the cleaned signature: it shows the *actual output file* with a
+    hairline so white edges are visible. Transparent areas show a light
+    checkerboard, the usual way editors show "see-through".
     """
 
     def __init__(self, theme: ThemeManager, placeholder: str = "", parent: QWidget | None = None) -> None:
@@ -63,11 +65,31 @@ class ImagePreview(QWidget):
             painter.end()
             return
         rect = self.image_rect()
+        if self._image.hasAlphaChannel():
+            self.paint_checkerboard(painter, rect)
         painter.drawImage(rect, self._image)
         painter.setPen(QPen(t.qcolor("border"), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRect(rect.adjusted(-0.5, -0.5, 0.5, 0.5))
         painter.end()
+
+    @staticmethod
+    def paint_checkerboard(painter: QPainter, rect: QRectF) -> None:
+        """Light grey/white squares that show through transparent areas."""
+        # Always light, in both themes, so dark ink stays visible on it.
+        painter.save()
+        painter.setClipRect(rect)
+        painter.fillRect(rect, LIGHT.qcolor("surface"))
+        dark = LIGHT.qcolor("border")
+        y, row = rect.top(), 0
+        while y < rect.bottom():
+            x = rect.left() + (CHECKER if row % 2 else 0)
+            while x < rect.right():
+                painter.fillRect(QRectF(x, y, CHECKER, CHECKER), dark)
+                x += 2 * CHECKER
+            y += CHECKER
+            row += 1
+        painter.restore()
 
     def _apply_tokens(self, tokens: Tokens) -> None:
         self._tokens = tokens

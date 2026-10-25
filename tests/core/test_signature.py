@@ -149,3 +149,49 @@ def test_thicken_only_when_needed(cleaned) -> None:
     dark_after = (np.asarray(thick.convert("L")) < 128).sum()
     assert dark_after > dark_before * 1.5
     assert thick.size == cleaned.image.size
+
+
+# ----- transparent output (Phase 5b) ------------------------------------
+@pytest.fixture(scope="module")
+def transparent(photo):
+    return clean_signature(photo, CleanOptions(transparent=True))
+
+
+def test_transparent_output_is_rgba(transparent) -> None:
+    assert transparent.image.mode == "RGBA"
+    rgba = np.asarray(transparent.image)
+    h, w, _ = rgba.shape
+    for y, x in ((0, 0), (h - 1, w - 1), (h // 2, 2)):  # paper and margins are see-through
+        assert rgba[y, x, 3] == 0
+    assert (rgba[..., 3] == 255).sum() > 500  # solid ink stays fully opaque
+    assert (rgba[..., 3] == 0).mean() > 0.85
+
+
+def test_transparent_edges_have_no_pale_halo(transparent) -> None:
+    rgba = np.asarray(transparent.image).astype(int)
+    alpha = rgba[..., 3]
+    solid = rgba[alpha == 255][:, :3].sum(axis=1)
+    edge = rgba[(alpha > 20) & (alpha < 200)][:, :3].sum(axis=1)
+    assert len(edge) > 100
+    # Edge colour must be as dark as the solid ink, not mixed with white paper.
+    assert np.median(edge) <= np.median(solid) + 30
+
+
+def test_transparent_black_ink(photo) -> None:
+    result = clean_signature(photo, CleanOptions(transparent=True, black_ink=True))
+    rgba = np.asarray(result.image)
+    assert rgba[..., :3].max() == 0  # pure black everywhere; opacity carries the shape
+
+
+def test_transparent_margins_are_even(transparent) -> None:
+    x, y, w, h = transparent.ink_box
+    width, height = transparent.image.size
+    assert x == y and width - (x + w) == x and height - (y + h) == y
+
+
+def test_thicken_transparent_grows_opacity(transparent) -> None:
+    thick, changed = thicken_for_scale(transparent.image, transparent.stroke_width, 0.1)
+    assert changed and thick.mode == "RGBA"
+    before = (np.asarray(transparent.image)[..., 3] > 128).sum()
+    after = (np.asarray(thick)[..., 3] > 128).sum()
+    assert after > before * 1.5
