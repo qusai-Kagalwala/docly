@@ -31,12 +31,12 @@ def test_rotation_settings(tmp_path: Path) -> None:
 
 
 def test_unicode_messages_and_paths(tmp_path: Path) -> None:
-    folder = tmp_path / "दस्तावेज़ logs ✓"
+    folder = tmp_path / "दस्तावेज़ logs ñ"
     path = docly_logger.setup_logging(folder, console=False)
     assert path is not None
-    docly_logger.get_logger("test").info("फ़ोटो.jpg – résumé ✅")
+    docly_logger.get_logger("test").info("फ़ोटो.jpg – résumé €")
     _flush()
-    assert "फ़ोटो.jpg – résumé ✅" in path.read_text(encoding="utf-8")
+    assert "फ़ोटो.jpg – résumé €" in path.read_text(encoding="utf-8")
 
 
 def test_unwritable_location_falls_back_without_crashing(tmp_path: Path) -> None:

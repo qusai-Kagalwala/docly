@@ -199,13 +199,18 @@ class ThemeManager(QObject):
             from docly.ui.icons import export_icon_svg
             from docly.ui.qss import build_stylesheet
 
-            down = export_icon_svg("chevron-down", new_tokens.text_muted)
-            up = export_icon_svg("chevron-up", new_tokens.text_muted)
-            # QSS wants forward slashes
+            def exported(name: str, colour: str) -> str | None:
+                path = export_icon_svg(name, colour)
+                return path.as_posix() if path else None  # QSS wants forward slashes
+
+            down = exported("chevron-down", new_tokens.text_muted)
+            icons = {
+                "plus": exported("plus", new_tokens.text),
+                "minus": exported("minus", new_tokens.text),
+                "check": exported("check", new_tokens.on_accent),
+            }
             self._app.setPalette(build_palette(new_tokens))
-            self._app.setStyleSheet(
-                build_stylesheet(new_tokens, down.as_posix() if down else None, up.as_posix() if up else None)
-            )
+            self._app.setStyleSheet(build_stylesheet(new_tokens, down, None, icons))
             log.debug("Applied %s theme", new_tokens.name)
             self.themeChanged.emit(new_tokens)
         finally:

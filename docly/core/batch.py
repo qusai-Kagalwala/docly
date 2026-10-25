@@ -1,7 +1,7 @@
 """Batch mode: one preset (or size limit) applied to many files.
 
 Each file is handled on its own: a damaged or unsupported file is marked
-❌ with the reason and the batch carries on. Results go into one new
+"Failed" with the reason and the batch carries on. Results go into one new
 folder per run, ``Docly_Output/<preset> <date time>/``, never overwriting
 anything, together with ``Docly report.csv`` (opens in Excel).
 

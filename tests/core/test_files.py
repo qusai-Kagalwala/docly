@@ -17,7 +17,7 @@ from docly.core.errors import FileAccessError, FileTooLargeError
         ("photo", "photo"),
         ('my:photo?*"<>|', "my_photo______"),
         ("  trailing dots... ", "trailing dots"),
-        ("फ़ोटो ✓", "फ़ोटो ✓"),
+        ("फ़ोटो ñ", "फ़ोटो ñ"),
         ("CON", "CON_"),
         ("", "file"),
         ("...", "file"),

@@ -59,3 +59,28 @@ def test_engine_libraries_load_on_startup_thread(module: str) -> None:
         env={**__import__("os").environ, "QT_QPA_PLATFORM": "offscreen"},
     ).stdout.strip()
     assert output == "True"
+
+
+#: Emoji and symbol "icons". Docly draws status with Lucide icons in tinted
+#: capsules instead, so text never depends on the emoji font. Plain
+#: typographic marks (→ · × —) are fine.
+BANNED_SYMBOLS = "✅❌⚠⭐✓✗✔✕✖⏳↗↻★☆❗❓"
+
+
+def _is_emoji(char: str) -> bool:
+    code = ord(char)
+    return char in BANNED_SYMBOLS or 0x1F000 <= code <= 0x1FAFF or code == 0xFE0F
+
+
+def test_no_emoji_in_the_repository() -> None:
+    suffixes = {".py", ".json", ".md", ".txt", ".toml", ".qss", ".iss", ".cfg"}
+    skip = {".venv", "venv", ".git", "__pycache__", "build", "dist", ".pytest_cache"}
+    found = []
+    for path in ROOT.rglob("*"):
+        if path.suffix not in suffixes or skip.intersection(path.relative_to(ROOT).parts):
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for number, line in enumerate(text.splitlines(), start=1):
+            if any(_is_emoji(c) for c in line) and "BANNED_SYMBOLS =" not in line:
+                found.append(f"{path.relative_to(ROOT)}:{number}")
+    assert not found, "Use an icon (StatusBadge, Banner, StatusIcon) instead of emoji:\n" + "\n".join(found)

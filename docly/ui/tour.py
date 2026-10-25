@@ -14,10 +14,11 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QPropertyAnimation, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPen
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from docly.ui import motion
 from docly.ui.theme import ThemeManager, Tokens
 
 SPOT_PADDING = 8
@@ -93,6 +94,7 @@ class TourOverlay(QWidget):
         self.index = 0
         self.tokens: Tokens = theme.tokens
         self.spot = QRect()
+        self._glide: QPropertyAnimation | None = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAccessibleName("Docly tour")
 
@@ -156,7 +158,9 @@ class TourOverlay(QWidget):
         padded = area.adjusted(-SPOT_PADDING, -SPOT_PADDING, SPOT_PADDING, SPOT_PADDING)
         return padded.intersected(self.rect().adjusted(EDGE // 2, EDGE // 2, -EDGE // 2, -EDGE // 2))
 
-    def relayout(self) -> None:
+    def relayout(self, animate: bool = True) -> None:
+        """Re-measure the spotlight and place the bubble (gliding to it
+        between steps; jumping straight there when the window resizes)."""
         if self.parentWidget() is None:
             return
         self.setGeometry(self.parentWidget().rect())
@@ -166,7 +170,17 @@ class TourOverlay(QWidget):
         layout.activate()
         height = layout.totalHeightForWidth(BUBBLE_WIDTH) if layout.hasHeightForWidth() else self.bubble.sizeHint().height()
         self.bubble.resize(BUBBLE_WIDTH, max(height, self.bubble.minimumSizeHint().height()))
-        self.bubble.move(self._bubble_position(self.bubble.width(), self.bubble.height()))
+        target = self._bubble_position(self.bubble.width(), self.bubble.height())
+        if self._glide is not None:
+            try:
+                self._glide.stop()  # deletes itself when stopped
+            except RuntimeError:
+                pass
+            self._glide = None
+        if animate and self.bubble.pos() != target:
+            self._glide = motion.move_to(self.bubble, target, motion.NORMAL_MS)
+        else:
+            self.bubble.move(target)
         self.update()
 
     def _bubble_position(self, width: int, height: int) -> QPoint:
@@ -226,7 +240,7 @@ class TourOverlay(QWidget):
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched is self.parentWidget() and event.type() == QEvent.Type.Resize:
-            self.relayout()
+            self.relayout(animate=False)
         return super().eventFilter(watched, event)
 
     # ----- internals ------------------------------------------------------------------

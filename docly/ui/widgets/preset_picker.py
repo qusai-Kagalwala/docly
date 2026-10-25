@@ -10,9 +10,10 @@ from collections.abc import Iterable, Sequence
 
 from PySide6.QtCore import QLocale, Qt, Signal
 from PySide6.QtGui import QFont, QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QVBoxLayout, QWidget
 
 from docly.presets.models import INTL_REGION, Category, Preset, PresetKind
+from docly.ui.widgets.search_field import SearchField
 
 #: Docly is India-first: Indian presets are always in the default list, even
 #: on PCs set to another region (many Indian PCs are set to "United States").
@@ -84,9 +85,7 @@ class PresetPicker(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Search presets, e.g. IBPS, visa, passport")
-        self.search.setClearButtonEnabled(True)
+        self.search = SearchField("Search presets, e.g. IBPS, visa, passport")
         self.search.setAccessibleName("Search presets")
         layout.addWidget(self.search)
 

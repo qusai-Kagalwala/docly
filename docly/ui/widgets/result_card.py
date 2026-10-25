@@ -1,4 +1,4 @@
-"""Result card: ✅/❌, the checks, a preview, and Save / Save as / Show in folder."""
+"""Result card: a status icon, the checks, a preview, and Save / Save as / Show in folder."""
 
 from __future__ import annotations
 
@@ -6,26 +6,18 @@ from pathlib import Path
 
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QImage, QPainter, QPixmap
-from PySide6.QtWidgets import (
-    QFileDialog,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QProgressBar,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QFileDialog, QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from docly.core.errors import FileAccessError
 from docly.core.files import write_file, write_new_file
 from docly.core.pipeline import ProcessResult
 from docly.core.validate import Check
 from docly.logger import get_logger
-from docly.ui import desktop
+from docly.ui import desktop, motion
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
 from docly.ui.widgets.image_preview import ImagePreview
+from docly.ui.widgets.status_badge import IconText, StatusIcon
 from docly.ui.widgets.style import set_style_prop
 
 log = get_logger(__name__)
@@ -59,10 +51,12 @@ class ResultCard(Card):
         self._source: Path | None = None
         self.saved_path: Path | None = None
 
-        status = QHBoxLayout()
+        self._theme = theme
+        self.status_row = QWidget()
+        status = QHBoxLayout(self.status_row)
+        status.setContentsMargins(0, 0, 0, 0)
         status.setSpacing(12)
-        self.mark = QLabel()
-        self.mark.setObjectName("StatusMark")
+        self.mark = StatusIcon(theme)
         status.addWidget(self.mark, 0, Qt.AlignmentFlag.AlignTop)
         text = QVBoxLayout()
         text.setSpacing(2)
@@ -74,7 +68,7 @@ class ResultCard(Card):
         text.addWidget(self.title)
         text.addWidget(self.subtitle)
         status.addLayout(text, 1)
-        self.body.addLayout(status)
+        self.body.addWidget(self.status_row)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)  # "busy" animation
@@ -135,13 +129,13 @@ class ResultCard(Card):
         self._set_buttons(False)
 
     def show_busy(self) -> None:
-        self._set_status("⏳", "Preparing…", "Cropping, resizing and compressing.", None)
+        self._set_status("working", "Preparing…", "Cropping, resizing and compressing.", None)
         self.progress.show()
         self._set_buttons(False)
 
     def show_error(self, message: str) -> None:
         self._result = None
-        self._set_status("❌", "Couldn't process this photo", message, "fail")
+        self._set_status("danger", "Couldn't process this photo", message, "fail")
         self.progress.hide()
         self._clear_details()
         self._set_buttons(False)
@@ -157,9 +151,9 @@ class ResultCard(Card):
         if c.quality is not None:
             summary += f" · quality {c.quality}"
         if result.passed:
-            self._set_status("✅", "Ready to upload", summary, "pass")
+            self._set_status("success", "Ready to upload", summary, "pass")
         else:
-            self._set_status("❌", "Needs attention", summary, "fail")
+            self._set_status("danger", "Needs attention", summary, "fail")
         self._show_checks(result.report.checks)
         self.notes.setText("\n".join(result.notes))
         self.notes.setVisible(bool(result.notes))
@@ -225,10 +219,13 @@ class ResultCard(Card):
             log.info("Saved %s", path)
             self.saved.emit(path)
 
-    def _set_status(self, mark: str, title: str, subtitle: str, state: str | None) -> None:
-        self.mark.setText(mark)
-        self.mark.setVisible(bool(mark))
+    def _set_status(self, kind: str, title: str, subtitle: str, state: str | None) -> None:
+        """``kind`` picks the icon tile: success, warning, danger, working or "" (none)."""
+        changed = kind != self.mark.kind or title != self.title.text()
+        self.mark.set_kind(kind)
         self.title.setText(title)
+        if changed and state is not None:
+            motion.fade_in(self.status_row, motion.FAST_MS)
         set_style_prop(self.title, "state", state)
         self.subtitle.setText(subtitle)
 
@@ -251,12 +248,8 @@ class ResultCard(Card):
                 item.widget().deleteLater()
         for check in checks:
             actual = check.actual.split(" (")[0]  # "48.2 KB (49,357 bytes)" -> "48.2 KB"
-            row = QLabel(f"{_mark(check)}  {check.name}: {actual}")
-            row.setWordWrap(True)
-            row.setProperty("role", "body" if check.passed or not check.blocking else None)
+            row = IconText(self._theme, check_kind(check), f"{check.name}: {actual}")
             row.setToolTip(f"{check.actual}\nExpected {check.expected}")
-            if not check.passed:
-                row.setProperty("banner", "danger" if check.blocking else "warning")
             self.checks_box.addWidget(row)
         self.checks_box.addStretch(1)
 
@@ -281,7 +274,8 @@ class ResultCard(Card):
         self.preview_frame.show()
 
 
-def _mark(check: Check) -> str:
+def check_kind(check: Check) -> str:
+    """success, danger (blocks the upload) or warning (worth a look)."""
     if check.passed:
-        return "✅"
-    return "❌" if check.blocking else "⚠️"
+        return "success"
+    return "danger" if check.blocking else "warning"

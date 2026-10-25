@@ -7,6 +7,7 @@ so no widget needs to know any colour.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from string import Template
 
 from docly.ui.theme import SIDEBAR_ALPHA, Tokens
@@ -93,6 +94,10 @@ QLabel#SidebarBrand {
     font-size: 16px;
     font-weight: 600;
 }
+QFrame#NavIndicator {
+    background: $accent;
+    border-radius: 1px;
+}
 QFrame#SidebarDivider {
     background: $border;
     border: none;
@@ -128,6 +133,12 @@ QFrame#Card {
 }
 QDialog {
     background: $bg;
+}
+QDialog#ColourPopover { background: transparent; }
+QFrame#PopoverFrame {
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: 12px;
 }
 
 /* ---------- chips ---------- */
@@ -221,6 +232,13 @@ QHeaderView::section {
 }
 
 /* ---------- home page & tour ---------- */
+QFrame#Toast {
+    background: $surface;
+    border: 1px solid $border_hover;
+    border-radius: 12px;
+}
+QFrame#Toast QLabel#ToastText { font-size: 13px; background: transparent; }
+QFrame#Toast QPushButton { padding: 4px 10px; min-height: 0; }
 QFrame#TourBubble {
     background: $surface;
     border: 1px solid $border;
@@ -272,21 +290,38 @@ QPushButton[segment="true"]:focus {
 }
 
 /* ---------- inputs ---------- */
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit {
     background: $surface;
     color: $text;
     border: 1px solid $border;
     border-radius: 8px;
     padding: 6px 10px;
+    min-height: 22px;
     selection-background-color: $accent;
     selection-color: $on_accent;
 }
-QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {
+QPlainTextEdit {
+    padding: 4px 6px;
+}
+QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover, QPlainTextEdit:hover {
     border-color: $border_hover;
 }
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-    border-color: $accent;
+/* Focus: a 2px ring in the accent; padding shrinks by 1px so text doesn't jump. */
+QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {
+    border: 2px solid $focus_ring;
+    padding: 5px 9px;
 }
+QPlainTextEdit:focus { padding: 3px 5px; }
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QPlainTextEdit:disabled {
+    background: $surface_alt;
+    color: $text_muted;
+}
+QLineEdit[invalid="true"], QPlainTextEdit[invalid="true"] {
+    border: 2px solid $danger;
+    padding: 5px 9px;
+}
+QLineEdit#SearchField { border-radius: 18px; padding-left: 4px; }
+QLineEdit#SearchField:focus { padding-left: 3px; }
 QComboBox::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: center right;
@@ -298,39 +333,65 @@ QComboBox::down-arrow {
     width: 14px;
     height: 14px;
 }
+QComboBox::down-arrow:on { top: 1px; }
+/* Number boxes: [-]  value  [+] */
 QSpinBox, QDoubleSpinBox {
-    padding-right: 26px;
+    padding: 6px 30px;
+    qproperty-alignment: AlignCenter;
+}
+QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 2px solid $focus_ring;
+    padding: 5px 29px;
 }
 QSpinBox::up-button, QDoubleSpinBox::up-button,
 QSpinBox::down-button, QDoubleSpinBox::down-button {
     subcontrol-origin: border;
-    width: 24px;
+    width: 26px;
+    height: 26px;
     border: none;
+    border-radius: 6px;
     background: transparent;
 }
-QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-position: top right; margin-top: 3px; }
-QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-position: bottom right; margin-bottom: 3px; }
+QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-position: center right; right: 4px; }
+QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-position: center left; left: 4px; }
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
 QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
     background: $hover_tint;
-    border-radius: 4px;
+}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
+    background: $pressed_tint;
 }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
     $spin_up_arrow
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
 }
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
-    $combo_arrow
-    width: 12px;
-    height: 12px;
+    $spin_down_arrow
+    width: 14px;
+    height: 14px;
 }
 QComboBox QAbstractItemView {
     background: $surface;
     border: 1px solid $border;
+    border-radius: 8px;
+    padding: 4px;
     selection-background-color: $accent_tint;
     selection-color: $text;
     outline: none;
+}
+QComboBox QAbstractItemView::item {
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 6px;
+}
+QComboBox QAbstractItemView::item:hover {
+    background: $hover_tint;
+}
+QComboBox QAbstractItemView::item:selected {
+    background: $accent_tint;
+    color: $text;
 }
 
 /* ---------- scrollbars ---------- */
@@ -384,11 +445,46 @@ QLabel[banner] {
 QLabel[banner="danger"]  { background: $danger_tint;  color: $danger_text; }
 QLabel[banner="warning"] { background: $warning_tint; color: $warning_text; }
 QLabel[banner="info"]    { background: $accent_tint;  color: $accent_text; }
+QFrame#Banner {
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+QFrame#Banner QLabel#BannerText { font-size: 13px; background: transparent; }
+QFrame#Banner[kind="danger"]  { background: $danger_tint;  border-color: $danger_tint; }
+QFrame#Banner[kind="danger"] QLabel#BannerText  { color: $danger_text; }
+QFrame#Banner[kind="warning"] { background: $warning_tint; border-color: $warning_tint; }
+QFrame#Banner[kind="warning"] QLabel#BannerText { color: $warning_text; }
+QFrame#Banner[kind="info"]    { background: $accent_tint;  border-color: $accent_tint; }
+QFrame#Banner[kind="info"] QLabel#BannerText    { color: $accent_text; }
+QFrame#Banner[kind="success"] { background: $success_tint; border-color: $success_tint; }
+QFrame#Banner[kind="success"] QLabel#BannerText { color: $success_text; }
+
+QLabel[tone="danger"]  { color: $danger_text; }
+QLabel[tone="warning"] { color: $warning_text; }
+QLabel#StatusIcon { border-radius: 12px; background: $surface_alt; }
+QLabel#StatusIcon[kind="success"] { background: $success_tint; }
+QLabel#StatusIcon[kind="warning"] { background: $warning_tint; }
+QLabel#StatusIcon[kind="danger"]  { background: $danger_tint; }
+QLabel#StatusIcon[kind="info"], QLabel#StatusIcon[kind="neutral"] { background: $accent_tint; }
+
+/* ---------- status capsules (icon + word) ---------- */
+QFrame#StatusBadge {
+    border-radius: 10px;
+    min-height: 20px;
+}
+QFrame#StatusBadge QLabel { background: transparent; }
+QLabel#StatusBadgeText { font-size: 12px; font-weight: 600; }
+QFrame#StatusBadge[kind="success"] { background: $success_tint; }
+QFrame#StatusBadge[kind="success"] QLabel#StatusBadgeText { color: $success_text; }
+QFrame#StatusBadge[kind="warning"] { background: $warning_tint; }
+QFrame#StatusBadge[kind="warning"] QLabel#StatusBadgeText { color: $warning_text; }
+QFrame#StatusBadge[kind="danger"]  { background: $danger_tint; }
+QFrame#StatusBadge[kind="danger"] QLabel#StatusBadgeText  { color: $danger_text; }
+QFrame#StatusBadge[kind="neutral"], QFrame#StatusBadge[kind="info"] { background: $accent_tint; }
+QFrame#StatusBadge[kind="neutral"] QLabel#StatusBadgeText,
+QFrame#StatusBadge[kind="info"] QLabel#StatusBadgeText { color: $accent_text; }
 
 /* ---------- result status ---------- */
-QLabel#StatusMark {
-    font-size: 28px;
-}
 QLabel#StatusTitle {
     font-size: 16px;
     font-weight: 600;
@@ -433,6 +529,21 @@ QCheckBox {
     spacing: 8px;
     font-size: 13px;
 }
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid $border_hover;
+    border-radius: 5px;
+    background: $surface;
+}
+QCheckBox::indicator:hover { border-color: $accent; }
+QCheckBox::indicator:checked {
+    background: $accent;
+    border-color: $accent;
+    $check_mark
+}
+QCheckBox::indicator:disabled { background: $surface_alt; border-color: $border; }
+QCheckBox:focus { outline: none; }
 
 /* ---------- progress ---------- */
 QProgressBar {
@@ -458,15 +569,29 @@ QMessageBox QLabel {
 )
 
 
-def build_stylesheet(t: Tokens, combo_arrow: str | None = None, up_arrow: str | None = None) -> str:
+def build_stylesheet(
+    t: Tokens,
+    combo_arrow: str | None = None,
+    up_arrow: str | None = None,
+    icons: Mapping[str, str | None] | None = None,
+) -> str:
     """Return the full QSS for one palette.
 
-    ``combo_arrow`` / ``up_arrow`` are paths of recoloured chevron SVGs for
-    dropdowns and number boxes (QSS can only load images from files).
-    Without them Qt draws its own.
+    QSS can only load images from files, so icons the stylesheet draws come
+    in as paths of recoloured SVGs: ``combo_arrow`` (dropdown chevron) and
+    ``up_arrow`` (kept for older callers), plus ``icons`` with any of
+    ``plus``, ``minus`` (number-box buttons) and ``check`` (tick on the
+    accent). Missing ones fall back to what Qt draws itself.
     """
+    paths = dict(icons or {})
+
+    def image(path: str | None) -> str:
+        return f'image: url("{path}");' if path else ""
+
     values: dict[str, str] = {name: getattr(t, name) for name in t.__dataclass_fields__ if name != "name"}
     values.update(derived_colors(t))
-    values["combo_arrow"] = f'image: url("{combo_arrow}");' if combo_arrow else ""
-    values["spin_up_arrow"] = f'image: url("{up_arrow}");' if up_arrow else ""
+    values["combo_arrow"] = image(combo_arrow)
+    values["spin_up_arrow"] = image(paths.get("plus") or up_arrow)
+    values["spin_down_arrow"] = image(paths.get("minus") or combo_arrow)
+    values["check_mark"] = image(paths.get("check"))
     return _TEMPLATE.substitute(values)

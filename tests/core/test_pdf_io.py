@@ -9,12 +9,7 @@ import pikepdf
 import pytest
 
 from docly.core import pdf_io
-from docly.core.errors import (
-    CorruptPdfError,
-    FileTooLargeError,
-    PasswordRequiredError,
-    WrongPasswordError,
-)
+from docly.core.errors import CorruptPdfError, FileTooLargeError, PasswordRequiredError, WrongPasswordError
 from docly.core.pdf_io import open_pdf, open_pdf_bytes, sanitize_page, save_pdf
 from tests.core import pdfs
 
@@ -35,8 +30,8 @@ def test_page_size_follows_rotation() -> None:
 
 
 def test_unicode_name(tmp_path: Path) -> None:
-    path = pdfs.write_pdf(tmp_path / "प्रमाणपत्र ✓.pdf", ["x"])
-    assert open_pdf(path).name == "प्रमाणपत्र ✓.pdf"
+    path = pdfs.write_pdf(tmp_path / "प्रमाणपत्र ñ.pdf", ["x"])
+    assert open_pdf(path).name == "प्रमाणपत्र ñ.pdf"
 
 
 @pytest.mark.parametrize(

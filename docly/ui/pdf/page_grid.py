@@ -29,15 +29,7 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
 )
-from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QListView,
-    QMenu,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionViewItem,
-    QWidget,
-)
+from PySide6.QtWidgets import QAbstractItemView, QListView, QMenu, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QWidget
 
 from docly.core.pdf_ops import PageRef
 from docly.ui.icons import make_icon
@@ -109,7 +101,7 @@ class PageDelegate(QStyledItemDelegate):
         painter.setFont(font)
         number = str(index.row() + 1)
         if ref.rotate:
-            number += f"  ↻{ref.rotate}°"
+            number += f"  · {ref.rotate}°"
         painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, number)
         source_label = self._grid.source_label(ref)
         if source_label:

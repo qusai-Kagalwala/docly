@@ -202,6 +202,7 @@ class TextItem(SignItem):
         self.colour = colour
         self.date_style = date_style
         self.day = day or date.today()
+        self.editing = False
         if date_style:
             self.text = format_date(self.day, date_style)
         super().__init__(*text_size(self.text, font_size))
@@ -209,6 +210,11 @@ class TextItem(SignItem):
     @property
     def is_date(self) -> bool:
         return self.date_style is not None
+
+    def set_editing(self, editing: bool) -> None:
+        """While the on-page editor is open it draws the text, so the item doesn't."""
+        self.editing = editing
+        self.update()
 
     def set_text(self, text: str) -> None:
         self.text = text
@@ -251,6 +257,8 @@ class TextItem(SignItem):
         return FillItem(ItemKind.TEXT, page, self.box(), self.text, self.font_size, self.colour)
 
     def paint_content(self, painter: QPainter) -> None:
+        if self.editing:
+            return
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         font = QFont("Arial")  # Windows' stand-in for Helvetica, with the same widths

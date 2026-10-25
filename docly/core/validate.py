@@ -34,9 +34,15 @@ class Check:
     actual: str
     blocking: bool = True  # False = advice only, doesn't fail the report
 
+    @property
+    def word(self) -> str:
+        """PASS, FAIL (blocks the upload) or CHECK (advice) — for the CLI and logs."""
+        if self.passed:
+            return "PASS"
+        return "FAIL" if self.blocking else "CHECK"
+
     def __str__(self) -> str:
-        mark = "✅" if self.passed else ("❌" if self.blocking else "⚠️")
-        return f"{mark} {self.name}: {self.actual} (expected {self.expected})"
+        return f"{self.word} {self.name}: {self.actual} (expected {self.expected})"
 
 
 @dataclass(frozen=True)
@@ -59,7 +65,7 @@ class ValidationReport:
         return [c for c in self.checks if not c.blocking and not c.passed]
 
     def summary(self) -> str:
-        head = "Ready to upload ✅" if self.passed else "Won't pass this preset ❌"
+        head = "Ready to upload" if self.passed else "Won't pass this preset"
         return "\n".join([head, *(f"  {c}" for c in self.checks)])
 
 

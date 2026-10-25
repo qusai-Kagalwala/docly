@@ -18,6 +18,7 @@ HEIGHT = 38
 ICON_SIZE = 18
 RADIUS = 8.0
 BAR_WIDTH = 3.0
+BAR_INSET = 10  # gap above and below the selected bar
 
 
 class NavButton(QAbstractButton):
@@ -48,6 +49,8 @@ class NavButton(QAbstractButton):
         self._tokens = theme.tokens
         self._hover = 0.0  # 0 = not hovered, 1 = fully hovered
         self._focus_visible = False
+        #: False when the sidebar draws a sliding bar instead of each button.
+        self.paint_bar = True
 
         self._anim = QVariantAnimation(self)
         self._anim.setDuration(HOVER_MS)
@@ -92,6 +95,8 @@ class NavButton(QAbstractButton):
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802
         self._focus_visible = False
+        #: False when the sidebar draws a sliding bar instead of each button.
+        self.paint_bar = True
         self.update()
         super().focusOutEvent(event)
 
@@ -115,8 +120,8 @@ class NavButton(QAbstractButton):
             painter.drawRoundedRect(rect, RADIUS, RADIUS)
 
         # 3px accent bar on the left of the selected item.
-        if selected:
-            bar = QRectF(rect.left() + 1, rect.top() + 10, BAR_WIDTH, rect.height() - 20)
+        if selected and self.paint_bar:
+            bar = QRectF(rect.left() + 1, rect.top() + BAR_INSET, BAR_WIDTH, rect.height() - 2 * BAR_INSET)
             painter.setBrush(t.qcolor("accent"))
             painter.drawRoundedRect(bar, BAR_WIDTH / 2, BAR_WIDTH / 2)
 

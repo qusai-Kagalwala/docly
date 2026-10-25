@@ -32,16 +32,7 @@ from PySide6.QtWidgets import (
 )
 
 from docly.core.background import model_available
-from docly.core.batch import (
-    MAX_FILES,
-    BatchKind,
-    BatchReport,
-    BatchSettings,
-    ItemResult,
-    Status,
-    batch_folder,
-    run_batch,
-)
+from docly.core.batch import MAX_FILES, BatchKind, BatchReport, BatchSettings, ItemResult, Status, batch_folder, run_batch
 from docly.core.errors import DoclyError
 from docly.core.signature import CleanOptions
 from docly.logger import get_logger
@@ -56,6 +47,7 @@ from docly.ui.widgets.card import Card
 from docly.ui.widgets.drop_zone import IMAGE_EXTENSIONS, DropZone, ask_open_files, paths_from_mime
 from docly.ui.widgets.preset_picker import PresetPicker
 from docly.ui.widgets.segmented import SegmentedControl
+from docly.ui.widgets.status_badge import Banner, StatusDelegate
 from docly.ui.widgets.style import set_style_prop
 from docly.ui.workers import TaskRunner
 
@@ -65,12 +57,19 @@ SIDE_WIDTH = 320
 IMAGE_FILTER = "Images (*.jpg *.jpeg *.png *.webp *.bmp *.tif *.tiff *.gif *.heic *.heif);;All files (*)"
 PDF_FILTER = "PDF documents (*.pdf);;All files (*)"
 STATUS_TEXT = {
-    Status.READY: "✅ Ready",
-    Status.CHECK: "⚠️ Check",
-    Status.FAILED: "❌ Failed",
-    Status.NOT_DONE: "— Not done",
+    Status.READY: "Ready",
+    Status.CHECK: "Check",
+    Status.FAILED: "Failed",
+    Status.NOT_DONE: "Not done",
 }
 WAITING, WORKING = "Waiting", "Working…"
+#: Status words → capsule kind (Waiting and Not done stay plain, muted words).
+STATUS_KIND = {
+    STATUS_TEXT[Status.READY]: "success",
+    STATUS_TEXT[Status.CHECK]: "warning",
+    STATUS_TEXT[Status.FAILED]: "danger",
+    WORKING: "working",
+}
 COLUMNS = ("File", "Status", "Result", "Notes")
 
 
@@ -124,9 +123,7 @@ class BatchPage(BasePage):
         top.addWidget(self.clear_button)
         left.addLayout(top)
 
-        self.banner = QLabel()
-        self.banner.setWordWrap(True)
-        self.banner.hide()
+        self.banner = Banner(theme)
         left.addWidget(self.banner)
 
         self.stack = QStackedWidget()
@@ -155,6 +152,7 @@ class BatchPage(BasePage):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.table.setItemDelegateForColumn(1, StatusDelegate(theme, STATUS_KIND, self.table))
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.table_card.body.addWidget(self.table, 1)
         tip = QLabel("Select rows and press Delete to remove them before starting.")
@@ -192,7 +190,7 @@ class BatchPage(BasePage):
         self.frame_person.setChecked(True)
         self.frame_person.setToolTip(
             "Finds the person and keeps space above their head, instead of cutting the middle out. "
-            "Photos where it has to guess are marked ⚠ Check."
+            "Photos where it has to guess are marked Check."
         )
         self.frame_person.setEnabled(model_available())
         self.photo_options.body.addWidget(self.frame_person)
@@ -494,9 +492,7 @@ class BatchPage(BasePage):
             self.add_files(paths)
 
     def show_banner(self, text: str, kind: str = "danger") -> None:
-        self.banner.setText(text)
-        set_style_prop(self.banner, "banner", kind)
-        self.banner.show()
+        self.banner.show_message(text, kind)
 
     def hide_banner(self) -> None:
         self.banner.hide()

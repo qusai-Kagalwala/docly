@@ -98,7 +98,7 @@ def test_utf8_bom_is_accepted(tmp_path: Path) -> None:
 
 
 def test_unicode_text_is_kept() -> None:
-    result = parse_presets(doc(with_(name="परीक्षा — फ़ोटो", notes="Ünïcödé ✅")))
+    result = parse_presets(doc(with_(name="परीक्षा — फ़ोटो", notes="Ünïcödé €")))
     assert result.ok
     assert result.presets[0].name == "परीक्षा — फ़ोटो"
 

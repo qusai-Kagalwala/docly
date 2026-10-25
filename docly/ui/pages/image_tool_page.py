@@ -16,14 +16,7 @@ from pathlib import Path
 from PIL import Image
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QStackedWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget, QVBoxLayout, QWidget
 
 from docly.core.compress import CancelCheck
 from docly.core.image_io import LoadedImage, load_image
@@ -40,7 +33,7 @@ from docly.ui.widgets.drop_zone import DropZone, ask_open_image, paths_from_mime
 from docly.ui.widgets.preset_info import PresetInfoCard
 from docly.ui.widgets.preset_picker import PresetPicker
 from docly.ui.widgets.result_card import ResultCard
-from docly.ui.widgets.style import set_style_prop
+from docly.ui.widgets.status_badge import Banner
 from docly.ui.workers import CancelToken, TaskRunner
 
 log = get_logger(__name__)
@@ -98,9 +91,7 @@ class ImageToolPage(BasePage):
         left.setSpacing(10)
         columns.addLayout(left, 1)
 
-        self.banner = QLabel()
-        self.banner.setWordWrap(True)
-        self.banner.hide()
+        self.banner = Banner(theme)
         left.addWidget(self.banner)
 
         self.crop_view = CropView(theme)
@@ -242,9 +233,7 @@ class ImageToolPage(BasePage):
             self._debounce.start()
 
     def show_banner(self, text: str, kind: str = "danger") -> None:
-        self.banner.setText(text)
-        set_style_prop(self.banner, "banner", kind)
-        self.banner.show()
+        self.banner.show_message(text, kind)
 
     def hide_banner(self) -> None:
         self.banner.hide()

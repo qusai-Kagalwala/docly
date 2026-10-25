@@ -2,7 +2,7 @@
 
 Offline Windows app that makes your photos, signatures and PDFs **portal-ready** for Indian exam and government forms — plus essential PDF tools.
 
-> 🚧 In development — v1.0 MVP
+> In development — v1.0 MVP
 
 ## Features (v1.0)
 - Portal presets (SSC, UPSC, IBPS, Passport Seva, NTA, scholarships, colleges)

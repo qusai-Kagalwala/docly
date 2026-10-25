@@ -12,23 +12,16 @@ import math
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QProgressBar,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from docly.core.errors import FileAccessError
 from docly.core.files import write_file, write_new_file
 from docly.core.pdf_ops import PdfResult
 from docly.logger import get_logger
-from docly.ui import desktop
+from docly.ui import desktop, motion
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
+from docly.ui.widgets.status_badge import Banner, StatusIcon
 from docly.ui.widgets.style import set_style_prop
 
 log = get_logger(__name__)
@@ -92,10 +85,11 @@ class PdfResultCard(Card):
         self._split = False
         self.saved_paths: list[Path] = []
 
-        status = QHBoxLayout()
+        self.status_row = QWidget()
+        status = QHBoxLayout(self.status_row)
+        status.setContentsMargins(0, 0, 0, 0)
         status.setSpacing(12)
-        self.mark = QLabel()
-        self.mark.setObjectName("StatusMark")
+        self.mark = StatusIcon(theme)
         status.addWidget(self.mark, 0, Qt.AlignmentFlag.AlignTop)
         text = QVBoxLayout()
         text.setSpacing(2)
@@ -108,7 +102,7 @@ class PdfResultCard(Card):
         text.addWidget(self.title)
         text.addWidget(self.subtitle)
         status.addLayout(text, 1)
-        self.body.addLayout(status)
+        self.body.addWidget(self.status_row)
 
         progress_row = QHBoxLayout()
         self.progress = QProgressBar()
@@ -118,8 +112,7 @@ class PdfResultCard(Card):
         progress_row.addWidget(self.cancel_button)
         self.body.addLayout(progress_row)
 
-        self.notes = QLabel()
-        self.notes.setWordWrap(True)
+        self.notes = Banner(theme)
         self.body.addWidget(self.notes)
 
         self.saved_label = QLabel()
@@ -171,7 +164,7 @@ class PdfResultCard(Card):
         self._show_save_buttons(False)
 
     def show_busy(self, text: str = "Building your PDF…") -> None:
-        self._set_status("⏳", "Working…", text, None)
+        self._set_status("working", "Working…", text, None)
         self.progress.setRange(0, 0)
         self._show_progress(True)
         self.notes.hide()
@@ -190,7 +183,7 @@ class PdfResultCard(Card):
 
     def show_error(self, message: str) -> None:
         self._results = []
-        self._set_status("❌", "Couldn't create the PDF", message, "fail")
+        self._set_status("danger", "Couldn't create the PDF", message, "fail")
         self._show_progress(False)
         self.notes.hide()
         self.saved_label.hide()
@@ -227,14 +220,15 @@ class PdfResultCard(Card):
                 title = f"Couldn't get under {limit}"
                 summary = f"Smallest readable version: {strict_kb(result.size_bytes)} · {pages}"
         if over:
-            self._set_status("⚠️", title, summary, "warn")
+            self._set_status("warning", title, summary, "warn")
         else:
-            self._set_status("✅", title, summary, "pass")
+            self._set_status("success", title, summary, "pass")
         self._show_progress(False)
         warnings = sorted({w for r in results for w in r.warnings})
-        self.notes.setText("\n".join(f"⚠ {w}" for w in warnings))
-        set_style_prop(self.notes, "banner", "warning" if warnings else None)
-        self.notes.setVisible(bool(warnings))
+        if warnings:
+            self.notes.show_message("\n".join(warnings), "warning")
+        else:
+            self.notes.hide()
         self.saved_label.hide()
         self.create_button.hide()
         self.save_button.setText("Save all" if split else "Save")
@@ -319,10 +313,13 @@ class PdfResultCard(Card):
             log.info("Saved %d PDF(s) to %s", len(paths), paths[0].parent)
             self.saved.emit(list(paths))
 
-    def _set_status(self, mark: str, title: str, subtitle: str, state: str | None) -> None:
-        self.mark.setText(mark)
-        self.mark.setVisible(bool(mark))
+    def _set_status(self, kind: str, title: str, subtitle: str, state: str | None) -> None:
+        """``kind`` picks the icon tile: success, warning, danger, working or "" (none)."""
+        changed = kind != self.mark.kind or title != self.title.text()
+        self.mark.set_kind(kind)
         self.title.setText(title)
+        if changed and state is not None:
+            motion.fade_in(self.status_row, motion.FAST_MS)
         set_style_prop(self.title, "state", state)
         self.subtitle.setText(subtitle)
 

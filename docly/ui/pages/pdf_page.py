@@ -49,6 +49,7 @@ from docly.ui.widgets.card import Card
 from docly.ui.widgets.drop_zone import IMAGE_EXTENSIONS, DropZone, ask_open_files, paths_from_mime
 from docly.ui.widgets.pdf_result_card import PdfResultCard
 from docly.ui.widgets.segmented import SegmentedControl
+from docly.ui.widgets.status_badge import Banner
 from docly.ui.widgets.style import set_style_prop
 from docly.ui.workers import CancelToken, TaskRunner
 
@@ -119,9 +120,7 @@ class PdfPage(BasePage):
         left = QVBoxLayout()
         left.setSpacing(10)
         columns.addLayout(left, 1)
-        self.banner = QLabel()
-        self.banner.setWordWrap(True)
-        self.banner.hide()
+        self.banner = Banner(theme)
         left.addWidget(self.banner)
 
         self.stack = QStackedWidget()
@@ -474,9 +473,7 @@ class PdfPage(BasePage):
 
     # ----- state -------------------------------------------------------------------
     def show_banner(self, text: str, kind: str = "danger") -> None:
-        self.banner.setText(text)
-        set_style_prop(self.banner, "banner", kind)
-        self.banner.show()
+        self.banner.show_message(text, kind)
 
     def hide_banner(self) -> None:
         self.banner.hide()

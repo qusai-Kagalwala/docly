@@ -35,7 +35,7 @@ FEATURES: tuple[Feature, ...] = (
 STEPS: tuple[tuple[str, str], ...] = (
     ("Pick your portal", "Choose the exam, visa or form. Docly knows its size, shape and KB limits."),
     ("Drop your file", "Drag a photo, signature or PDF in. Your original is never changed."),
-    ("Check and save", "✅ means every rule is met. Save puts the result in a Docly_Output folder."),
+    ("Check and save", "“Ready to upload” means every rule is met. Save puts the result in a Docly_Output folder."),
 )
 
 
@@ -229,12 +229,18 @@ class HomePage(BasePage):
         left.addWidget(self.links)
         left.addWidget(version)
         credit_row.addLayout(left, 1)
-        self.star_link = QLabel(_link(config.REPO_URL, "⭐ Star Docly on GitHub"))
+        star_row = QHBoxLayout()
+        star_row.setSpacing(6)
+        self.star_icon = QLabel()
+        self.star_link = QLabel(_link(config.REPO_URL, "Star Docly on GitHub"))
         self.star_link.setTextFormat(Qt.TextFormat.RichText)
         self.star_link.setOpenExternalLinks(True)
         self.star_link.setProperty("role", "caption")
         self.star_link.setToolTip("If Docly helped you, a star helps others find it.")
-        credit_row.addWidget(self.star_link, 0, Qt.AlignmentFlag.AlignBottom)
+        star_row.addWidget(self.star_icon)
+        star_row.addWidget(self.star_link)
+        credit_row.addLayout(star_row)
+        credit_row.setAlignment(star_row, Qt.AlignmentFlag.AlignBottom)
         credits.body.addLayout(credit_row)
         self.add_card(credits)
         self.finish_layout()
@@ -248,6 +254,7 @@ class HomePage(BasePage):
         dpr = self.devicePixelRatioF()
         self.mark.setPixmap(render_icon("docly-mark", tokens.accent, 52, dpr))
         self.tour_button.setIcon(make_icon("compass", tokens.on_accent, 16, dpr))
+        self.star_icon.setPixmap(render_icon("star", tokens.text_muted, 14, dpr))
 
 
 def _section(text: str) -> QLabel:

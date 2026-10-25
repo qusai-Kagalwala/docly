@@ -37,7 +37,7 @@ def test_wrong_dimensions_and_format() -> None:
     assert not checks["Format"].passed
     assert not checks["Dimensions"].passed
     assert checks["Dimensions"].actual == "300 × 300 px"
-    assert "❌" in str(checks["Dimensions"])
+    assert str(checks["Dimensions"]).startswith("FAIL")
 
 
 def test_too_small_and_too_big() -> None:
@@ -50,7 +50,7 @@ def test_safety_margin_is_advice_only() -> None:
     report = validate_bytes(padded_jpeg(200, 230, 50_500), IBPS)
     assert report.passed
     assert [w.name for w in report.warnings] == ["Safety margin"]
-    assert "⚠️" in str(report.warnings[0])
+    assert str(report.warnings[0]).startswith("CHECK")
 
 
 def test_pixel_range_and_ratio() -> None:

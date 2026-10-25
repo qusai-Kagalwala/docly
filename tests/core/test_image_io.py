@@ -97,8 +97,8 @@ def test_large_jpeg_is_decoded_reduced(tmp_path: Path) -> None:
 
 
 def test_unicode_file_name(tmp_path: Path) -> None:
-    path = images.save(images.flat(12, 12), tmp_path / "फ़ोटो ✓ résumé.jpg")
-    assert load_image(path).name == "फ़ोटो ✓ résumé.jpg"
+    path = images.save(images.flat(12, 12), tmp_path / "फ़ोटो ñ résumé.jpg")
+    assert load_image(path).name == "फ़ोटो ñ résumé.jpg"
 
 
 # ----- things that must be refused -----------------------------------

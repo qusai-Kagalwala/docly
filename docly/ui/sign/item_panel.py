@@ -2,23 +2,17 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import (
-    QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QPlainTextEdit,
-    QPushButton,
-    QSpinBox,
-    QWidget,
-)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from docly.core.pdf_fill import BLACK, BLUE_INK, COVER_WARNING, DATE_FORMATS, ItemKind, UnsupportedTextError, check_text
 from docly.ui.sign.items import CoverItem, ImageItem, MarkItem, SignItem, TextItem
+from docly.ui.sign.text_editing import UnsupportedHighlighter, count_text
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
 from docly.ui.widgets.segmented import SegmentedControl
-from docly.ui.widgets.style import set_style_prop
+from docly.ui.widgets.status_badge import Banner
 
 EMPTY_HINT = "Pick a tool above, then click on the page. Click an item to change it; drag its corner to resize."
 INKS = {"black": BLACK, "blue": BLUE_INK}
@@ -61,15 +55,26 @@ class ItemPanel(Card):
         self.hint.setWordWrap(True)
         self.body.addWidget(self.hint)
 
+        self.text_box = QWidget()
+        text_layout = QVBoxLayout(self.text_box)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(4)
         self.text_edit = QPlainTextEdit()
-        self.text_edit.setFixedHeight(70)
+        self.text_edit.setFixedHeight(76)
         self.text_edit.setAccessibleName("Text")
-        self.body.addWidget(self.text_edit)
+        self.text_edit.setPlaceholderText("Type here, or double-click the text on the page")
+        self.text_edit.setTabChangesFocus(True)
+        self.highlighter = UnsupportedHighlighter(self.text_edit.document(), QColor(theme.tokens.danger))
+        self.counter = QLabel()
+        self.counter.setProperty("role", "caption")
+        self.counter.setAlignment(Qt.AlignmentFlag.AlignRight)
+        text_layout.addWidget(self.text_edit)
+        text_layout.addWidget(self.counter)
+        self.body.addWidget(self.text_box)
 
-        self.text_warning = QLabel()
-        self.text_warning.setWordWrap(True)
-        set_style_prop(self.text_warning, "banner", "danger")
+        self.text_warning = Banner(theme)
         self.body.addWidget(self.text_warning)
+        theme.themeChanged.connect(lambda t: self.highlighter.set_colour(QColor(t.danger)))
 
         self.date_format = QComboBox()
         self.date_format.addItems(list(DATE_FORMATS))
@@ -92,9 +97,8 @@ class ItemPanel(Card):
         self.ink_row = _row("Ink", self.ink)
         self.body.addWidget(self.ink_row)
 
-        self.cover_note = QLabel(COVER_WARNING)
-        self.cover_note.setWordWrap(True)
-        set_style_prop(self.cover_note, "banner", "warning")
+        self.cover_note = Banner(theme)
+        self.cover_note.show_message(COVER_WARNING, "warning")
         self.body.addWidget(self.cover_note)
 
         self.delete_button = QPushButton("Delete")
@@ -128,7 +132,7 @@ class ItemPanel(Card):
             is_text = isinstance(item, TextItem)
             is_date = is_text and item.is_date  # type: ignore[union-attr]
             self.hint.setVisible(item is None)
-            self.text_edit.setVisible(is_text and not is_date)
+            self.text_box.setVisible(is_text and not is_date)
             self.date_row.setVisible(is_date)
             self.size_row.setVisible(isinstance(item, (TextItem, MarkItem)))
             self.width_row.setVisible(isinstance(item, ImageItem))
@@ -167,11 +171,11 @@ class ItemPanel(Card):
         self._emit("font_size" if isinstance(self.item, TextItem) else "size", float(value))
 
     def _check(self, text: str) -> None:
+        self.counter.setText(count_text(text))
         try:
             check_text(text)
         except UnsupportedTextError as exc:
-            self.text_warning.setText(str(exc))
-            self.text_warning.show()
+            self.text_warning.show_message(str(exc), "danger")
             return
         self.text_warning.hide()
 

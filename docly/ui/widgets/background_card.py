@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import QColorDialog, QComboBox, QHBoxLayout, QLabel, QSlider, QWidget
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSlider, QWidget
 
 from docly.core.background import COLOURS, RGB, BackgroundOptions
 from docly.presets.models import Preset
 from docly.ui.theme import ThemeManager
+from docly.ui.widgets import colour_popover
 from docly.ui.widgets.card import Card
 from docly.ui.widgets.style import set_style_prop
 
@@ -24,10 +25,9 @@ MISSING = "The background tool isn't available: its model file is missing. Reins
 SOFTNESS_TIP = "Low gives crisp edges and tidies flyaway hair. High keeps fine hair strands."
 
 
-def ask_colour(parent: QWidget, start: RGB) -> RGB | None:
-    """Windows colour picker; None if cancelled."""
-    colour = QColorDialog.getColor(QColor(*start), parent, "Background colour")
-    return (colour.red(), colour.green(), colour.blue()) if colour.isValid() else None
+def ask_colour(card: BackgroundCard, start: RGB) -> RGB | None:
+    """Docly's colour popover, opened under the card's drop-down; None if cancelled."""
+    return colour_popover.ask_colour(card.theme, card.choice, start)
 
 
 def swatch(rgb: RGB, size: int = 16) -> QIcon:
@@ -51,6 +51,7 @@ class BackgroundCard(Card):
 
     def __init__(self, theme: ThemeManager, available: bool = True, parent: QWidget | None = None) -> None:
         super().__init__(theme, parent)
+        self.theme = theme
         self.available = available
         self.blocked = False
         self.custom_colour: RGB = (220, 230, 240)

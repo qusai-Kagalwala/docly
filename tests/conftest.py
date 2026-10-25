@@ -12,6 +12,8 @@ import os
 
 # Must be set before any Qt module is imported.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Animations finish instantly in tests (motion tests turn them back on).
+os.environ.setdefault("DOCLY_REDUCE_MOTION", "1")
 
 from pathlib import Path  # noqa: E402
 

@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
-from docly.ui.icons import make_icon
+from docly.ui.icons import make_icon, render_icon
 from docly.ui.theme import ThemeManager, Tokens
+from docly.ui.widgets.status_badge import kind_colour
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,7 @@ class FileRow:
 
 
 class FileList(QWidget):
-    """One row per file: name, pages, a ⚠ badge if it had problems, ✕ to remove.
+    """One row per file: name, pages, a warning icon if it had problems, and a remove button.
 
     Signals:
         removeRequested(int): the source index whose pages should go.
@@ -77,8 +78,13 @@ class FileList(QWidget):
         line.addLayout(text, 1)
 
         if row.warnings:
-            badge = QLabel("⚠")
-            badge.setProperty("chip", "warning")
+            badge = QLabel()
+            badge.setObjectName("StatusIcon")
+            badge.setProperty("kind", "warning")
+            badge.setFixedSize(24, 24)
+            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            colour = kind_colour(self._tokens, "warning")
+            badge.setPixmap(render_icon("triangle-alert", colour, 14, self.devicePixelRatioF()))
             badge.setToolTip("\n".join(row.warnings))
             badge.setAccessibleName("Warnings")
             line.addWidget(badge, 0, Qt.AlignmentFlag.AlignVCenter)

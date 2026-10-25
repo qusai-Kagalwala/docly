@@ -10,9 +10,9 @@ from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QWidget
 from docly.presets.models import Category, Preset
 from docly.ui.theme import ThemeManager
 from docly.ui.widgets.card import Card
-from docly.ui.widgets.style import set_style_prop
+from docly.ui.widgets.status_badge import StatusBadge
 
-UNVERIFIED_TEXT = "⚠ Unverified"
+UNVERIFIED_TEXT = "Unverified"
 UNVERIFIED_TIP = (
     "Docly hasn't confirmed this preset against the latest official notice. "
     "Check the source before uploading."
@@ -35,8 +35,7 @@ class PresetInfoCard(Card):
         chips.setSpacing(6)
         self.region_chip = QLabel()
         self.region_chip.setProperty("chip", "neutral")
-        self.status_chip = QLabel()
-        self.status_chip.setProperty("chip", "neutral")
+        self.status_chip = StatusBadge(theme)
         chips.addWidget(self.region_chip)
         chips.addWidget(self.status_chip)
         chips.addStretch(1)
@@ -90,16 +89,13 @@ class PresetInfoCard(Card):
         self.region_chip.show()
         self.status_chip.setToolTip("")
         if preset.category == Category.GENERAL:
-            self.status_chip.setText("Docly preset")
-            set_style_prop(self.status_chip, "chip", "neutral")
+            self.status_chip.set_status("neutral", "Docly preset")
         elif preset.verified:
             verified = f" on {preset.last_verified:%d %b %Y}" if preset.last_verified else ""
-            self.status_chip.setText(f"Verified{verified}")
-            set_style_prop(self.status_chip, "chip", "success")
+            self.status_chip.set_status("success", f"Verified{verified}")
         else:
-            self.status_chip.setText(UNVERIFIED_TEXT)
+            self.status_chip.set_status("warning", UNVERIFIED_TEXT)
             self.status_chip.setToolTip(UNVERIFIED_TIP)
-            set_style_prop(self.status_chip, "chip", "warning")
         self.status_chip.show()
 
         self.notes.setText(preset.notes)
@@ -107,7 +103,7 @@ class PresetInfoCard(Card):
         if preset.source:
             link = escape(preset.source, quote=True)
             prefix = "" if preset.verified else "Check the latest rules: "
-            self.source.setText(f'{prefix}<a href="{link}">official source ↗</a>')
+            self.source.setText(f'{prefix}<a href="{link}">official source</a>')
             self.source.show()
         else:
             self.source.hide()

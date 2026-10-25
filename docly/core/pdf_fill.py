@@ -25,8 +25,8 @@ from enum import Enum
 
 import numpy as np
 import pikepdf
-from PIL import Image
 from pikepdf import Name
+from PIL import Image
 
 from docly.core.compress import CancelCheck
 from docly.core.errors import CancelledError, DoclyError, InvalidPageRangeError
@@ -145,9 +145,14 @@ def cover_item(page: int, x: float, y: float, w: float, h: float, colour: RGB = 
     return FillItem(ItemKind.COVER, page, Box(x, y, w, h), colour=colour)
 
 
+def can_print(ch: str) -> bool:
+    """True if the built-in PDF font can print ``ch`` (newlines count as fine)."""
+    return ch == "\n" or _encodable(ch)
+
+
 def check_text(text: str) -> None:
     """Raise :class:`UnsupportedTextError` naming characters Helvetica can't print."""
-    bad = sorted({ch for ch in text if ch != "\n" and not _encodable(ch)})
+    bad = sorted({ch for ch in text if not can_print(ch)})
     if bad:
         shown = " ".join(bad[:8])
         raise UnsupportedTextError(

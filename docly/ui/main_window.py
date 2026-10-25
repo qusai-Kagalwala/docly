@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QStackedWidget, QWidget
 
 from docly import config
 from docly.logger import get_logger
 from docly.presets import PresetLoadResult
+from docly.ui import desktop, motion
 from docly.ui.about_dialog import AboutDialog
 from docly.ui.icons import make_icon
 from docly.ui.pages.base_page import BasePage
@@ -22,6 +25,9 @@ from docly.ui.pages.signature_page import SignaturePage
 from docly.ui.sidebar import NavItem, Sidebar
 from docly.ui.theme import ThemeManager, Tokens
 from docly.ui.tour import TourOverlay, TourStep
+from docly.ui.widgets.pdf_result_card import PdfResultCard
+from docly.ui.widgets.result_card import ResultCard
+from docly.ui.widgets.toast import ToastHost
 
 log = get_logger(__name__)
 
@@ -78,6 +84,10 @@ class MainWindow(QMainWindow):
         assert isinstance(signature, SignaturePage) and isinstance(sign, SignPage)
         signature.signatureMade.connect(sign.set_last_signature)
 
+        self.toasts = ToastHost(root, theme)
+        for card in root.findChildren(ResultCard) + root.findChildren(PdfResultCard):
+            card.saved.connect(self._on_saved)
+
         theme.themeChanged.connect(self._apply_tokens)
         self._apply_tokens(theme.tokens)
         self._show_index(0)
@@ -101,9 +111,25 @@ class MainWindow(QMainWindow):
     def _show_index(self, index: int) -> None:
         if not 0 <= index < len(self.pages):
             return
+        if index != self.stack.currentIndex():
+            self._crossfade()
         self.stack.setCurrentIndex(index)
         self.sidebar.set_current(index)
         log.debug("Showing page %s", self.pages[index].PAGE_ID)
+
+    def _crossfade(self) -> None:
+        """Fade the old page out over the new one (a snapshot, so the new page
+        is live and clickable straight away)."""
+        if not motion.enabled() or not self.stack.isVisible():
+            return
+        snapshot = QLabel(self.stack)
+        snapshot.setObjectName("PageSnapshot")
+        snapshot.setPixmap(self.stack.grab())
+        snapshot.setGeometry(self.stack.rect())
+        snapshot.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        snapshot.show()
+        snapshot.raise_()
+        motion.fade_out_and_delete(snapshot, motion.FAST_MS)
 
     def page(self, page_id: str) -> BasePage:
         """The page object with ``page_id`` (raises ``KeyError`` if unknown)."""
@@ -140,7 +166,7 @@ class MainWindow(QMainWindow):
             ),
             TourStep(
                 "3. Check and save",
-                "✅ means every rule is met. Save puts the result in a Docly_Output folder next to your photo.",
+                "“Ready to upload” means every rule is met. Save puts the result in a Docly_Output folder next to your photo.",
                 lambda: [photo.result_card],
                 lambda: (go("photo"), photo.side_scroll.ensureWidgetVisible(photo.result_card)),
             ),
@@ -187,6 +213,16 @@ class MainWindow(QMainWindow):
         self.theme.store.set_tour_seen(True)
         self.tour = None
         log.info("Tour %s", "completed" if completed else "skipped")
+
+    # ----- toasts -----------------------------------------------------
+    def _on_saved(self, saved: Path | list[Path]) -> None:
+        """A result card saved something: confirm it with a toast."""
+        paths = saved if isinstance(saved, list) else [saved]
+        if not paths:
+            return
+        first = paths[0]
+        text = f"Saved {first.name}" if len(paths) == 1 else f"Saved {len(paths)} files"
+        self.toasts.show(text, "success", "Open folder", lambda: desktop.reveal_in_folder(first))
 
     # ----- dialogs ----------------------------------------------------
     def show_about(self) -> AboutDialog:

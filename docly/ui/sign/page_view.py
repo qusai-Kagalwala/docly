@@ -14,7 +14,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QImage, QMouseEvent, QPainter, QPixmap, QUndoCommand, QWheelEvent
 from PySide6.QtWidgets import QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView, QWidget
 
-from docly.ui.sign.items import SignItem, State
+from docly.ui.sign.items import SignItem, State, TextItem
 
 ZOOM_STEP = 1.25
 MIN_ZOOM, MAX_ZOOM = 0.2, 6.0
@@ -91,6 +91,7 @@ class PageView(QGraphicsView):
 
     pageClicked = Signal(QPointF)
     zoomChanged = Signal(float)
+    textEditRequested = Signal(object)  # a TextItem was double-clicked
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -155,6 +156,17 @@ class PageView(QGraphicsView):
                 event.accept()
                 return
         super().mousePressEvent(event)
+
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        item = self.itemAt(event.position().toPoint())
+        while item is not None and not isinstance(item, TextItem):
+            item = item.parentItem()
+        if isinstance(item, TextItem) and not item.is_date and event.button() == Qt.MouseButton.LeftButton:
+            self.textEditRequested.emit(item)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
 
 class SnapshotCommand(QUndoCommand):

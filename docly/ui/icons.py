@@ -31,6 +31,14 @@ ICON_NAMES: tuple[str, ...] = (
     "info",
     "chevron-down",
     "chevron-up",
+    # Status badges, inputs and links
+    "circle-check",
+    "triangle-alert",
+    "circle-x",
+    "loader-circle",
+    "search",
+    "minus",
+    "plus",
     # Home page and tour
     "house",
     "compass",

@@ -47,11 +47,12 @@ from docly.ui.pdfium import PDFIUM_LOCK
 from docly.ui.sign.item_panel import ItemPanel
 from docly.ui.sign.items import CoverItem, ImageItem, MarkItem, SignItem, TextItem
 from docly.ui.sign.page_view import AddRemoveCommand, PageScene, PageView, SnapshotCommand
+from docly.ui.sign.text_editing import InlineTextEditor
 from docly.ui.theme import ThemeManager, Tokens
 from docly.ui.widgets.card import Card
 from docly.ui.widgets.drop_zone import DropZone, ask_open_files, paths_from_mime
 from docly.ui.widgets.pdf_result_card import PdfResultCard
-from docly.ui.widgets.style import set_style_prop
+from docly.ui.widgets.status_badge import Banner
 from docly.ui.workers import CancelToken, TaskRunner
 
 log = get_logger(__name__)
@@ -68,8 +69,8 @@ TOOLS: tuple[tuple[str, str, str], ...] = (
     ("select", "mouse-pointer-2", "Select and move (Esc)"),
     ("text", "type", "Text: click where it should go"),
     ("date", "calendar", "Today's date"),
-    ("tick", "check", "Tick ✓"),
-    ("cross", "x", "Cross ✗"),
+    ("tick", "check", "Tick"),
+    ("cross", "x", "Cross"),
     ("signature", "signature", "Your signature"),
     ("cover", "square", "Cover-up box (hides, doesn't delete)"),
 )
@@ -163,9 +164,7 @@ class SignPage(BasePage):
         left = QVBoxLayout()
         left.setSpacing(10)
         columns.addLayout(left, 1)
-        self.banner = QLabel()
-        self.banner.setWordWrap(True)
-        self.banner.hide()
+        self.banner = Banner(theme)
         left.addWidget(self.banner)
 
         self.stack = QStackedWidget()
@@ -180,6 +179,7 @@ class SignPage(BasePage):
             picker_title="Choose a form",
         )
         self.view = PageView()
+        self.inline_editor: InlineTextEditor | None = None
         self.workspace = self._build_workspace(theme)
         self.stack.addWidget(self.drop_zone)
         self.stack.addWidget(self.workspace)
@@ -219,6 +219,8 @@ class SignPage(BasePage):
         self.drop_zone.filesChosen.connect(self._open_first)
         self.open_button.clicked.connect(self.browse)
         self.view.pageClicked.connect(self._on_page_clicked)
+        self.view.textEditRequested.connect(self.edit_text_inline)
+        self.view.zoomChanged.connect(lambda _z: self.inline_editor is not None and self.inline_editor.reposition())
         self.view.zoomChanged.connect(lambda z: self.zoom_label.setText(f"{z * 100:.0f}%"))
         self.panel.changeRequested.connect(self.change_item)
         self.panel.deleteRequested.connect(self.delete_selected)
@@ -399,6 +401,7 @@ class SignPage(BasePage):
         path, source, sizes = payload
         self.renderer.cancel()
         self.processor.cancel()
+        self.close_inline_editor()
         for scene in self.scenes.values():
             scene.deleteLater()
         self.scenes.clear()
@@ -430,6 +433,8 @@ class SignPage(BasePage):
     def show_page(self, index: int) -> None:
         if self.source is None or not 0 <= index < len(self.page_sizes):
             return
+        if index != self.current:
+            self.close_inline_editor()
         self.current = index
         scene = self.scene_for(index)
         if self.view.scene() is not scene:
@@ -513,9 +518,33 @@ class SignPage(BasePage):
         item.setSelected(True)
         self.set_tool("select")
         if isinstance(item, TextItem) and not item.is_date:
-            self.panel.text_edit.setFocus()
-            self.panel.text_edit.selectAll()
+            self.edit_text_inline(item)
         return item
+
+    def edit_text_inline(self, item: TextItem) -> InlineTextEditor:
+        """Type straight onto the page (double-click a text item, or place one)."""
+        self.close_inline_editor()
+        scene = item.scene()
+        if isinstance(scene, PageScene) and scene.index != self.current:
+            self.show_page(scene.index)
+        scene = item.scene()
+        if scene is not None:
+            scene.clearSelection()
+        item.setSelected(True)
+        editor = InlineTextEditor(self.view, item, QColor(self.theme.tokens.danger))
+        editor.textEdited.connect(lambda text, it=item: self.change_item(it, "text", text))
+        editor.finished.connect(lambda _ok, ed=editor: self._on_inline_closed(ed))
+        self.inline_editor = editor
+        return editor
+
+    def close_inline_editor(self) -> None:
+        if self.inline_editor is not None:
+            self.inline_editor.close_editor(accept=True)
+
+    def _on_inline_closed(self, editor: InlineTextEditor) -> None:
+        if self.inline_editor is editor:
+            self.inline_editor = None
+            self.view.setFocus()
 
     def _on_page_clicked(self, point: QPointF) -> None:
         if self.tool != "select":
@@ -613,6 +642,7 @@ class SignPage(BasePage):
     def create_pdf(self) -> None:
         if self.source is None:
             return
+        self.close_inline_editor()
         items = [item.to_fill(index) for index, item in self.all_items()]
         if not items:
             self.result_card.show_error("Add something to the page first: pick a tool and click the page.")
@@ -671,9 +701,7 @@ class SignPage(BasePage):
             self._open_first(paths)
 
     def show_banner(self, text: str, kind: str = "danger") -> None:
-        self.banner.setText(text)
-        set_style_prop(self.banner, "banner", kind)
-        self.banner.show()
+        self.banner.show_message(text, kind)
 
     def hide_banner(self) -> None:
         self.banner.hide()

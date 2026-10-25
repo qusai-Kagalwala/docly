@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QRect, Qt, Signal
+from PySide6.QtGui import QResizeEvent, QShowEvent
 from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from docly import config
+from docly.ui import motion
 from docly.ui.icons import render_icon
 from docly.ui.theme import ThemeManager, Tokens
-from docly.ui.widgets.nav_button import NavButton
+from docly.ui.widgets.nav_button import BAR_INSET, BAR_WIDTH, NavButton
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,13 @@ class Sidebar(QFrame):
             self.nav_buttons.append(button)
             layout.addWidget(button)
         self._group.idClicked.connect(self.pageRequested)
+        # One accent bar that slides between items (instead of each button drawing its own).
+        self.indicator = QFrame(self)
+        self.indicator.setObjectName("NavIndicator")
+        self.indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.indicator.hide()
+        for button in self.nav_buttons:
+            button.paint_bar = False
 
         layout.addStretch(1)
         divider = QFrame()
@@ -95,6 +104,35 @@ class Sidebar(QFrame):
         """Highlight the nav item at ``index`` without emitting a signal."""
         if 0 <= index < len(self.nav_buttons):
             self.nav_buttons[index].setChecked(True)
+            self._place_indicator(animate=True)
+
+    def indicator_target(self) -> QRect | None:
+        """Where the sliding bar belongs: beside the checked item."""
+        button = self._group.checkedButton()
+        if button is None:
+            return None
+        geometry = button.geometry()
+        return QRect(geometry.x() + 1, geometry.y() + BAR_INSET, int(BAR_WIDTH), geometry.height() - 2 * BAR_INSET)
+
+    def _place_indicator(self, animate: bool) -> None:
+        target = self.indicator_target()
+        if target is None:
+            self.indicator.hide()
+            return
+        if animate and self.indicator.isVisible():
+            motion.slide_geometry(self.indicator, target, motion.NORMAL_MS)
+        else:
+            self.indicator.setGeometry(target)
+        self.indicator.show()
+        self.indicator.raise_()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._place_indicator(animate=False)
+
+    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._place_indicator(animate=False)
 
     def _apply_tokens(self, tokens: Tokens) -> None:
         self._mark.setPixmap(render_icon("docly-mark", tokens.accent, 24, self.devicePixelRatioF()))
