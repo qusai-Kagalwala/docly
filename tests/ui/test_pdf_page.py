@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,7 @@ TIMEOUT = 15_000
 
 
 @pytest.fixture
-def page(qtbot, theme_manager) -> PdfPage:
+def page(qtbot, theme_manager) -> Iterator[PdfPage]:
     widget = PdfPage(theme_manager)
     qtbot.addWidget(widget)
     widget.resize(1100, 720)
