@@ -232,6 +232,14 @@ QHeaderView::section {
 }
 
 /* ---------- home page & tour ---------- */
+QLabel#ShortcutKeys {
+    background: $surface_alt;
+    border: 1px solid $border;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
 QFrame#Toast {
     background: $surface;
     border: 1px solid $border_hover;

@@ -124,11 +124,12 @@ class BatchReport:
 # ----------------------------------------------------------------------
 # Running a batch
 # ----------------------------------------------------------------------
-def batch_folder(first_file: Path, label: str, now: datetime | None = None) -> Path:
-    """``<first file's folder>/Docly_Output/<label> <YYYY-MM-DD HH-MM>``."""
+def batch_folder(first_file: Path, label: str, now: datetime | None = None, base: Path | None = None) -> Path:
+    """``<base>/<label> <YYYY-MM-DD HH-MM>``; ``base`` defaults to
+    ``Docly_Output`` next to the first file."""
     stamp = (now or datetime.now()).strftime("%Y-%m-%d %H-%M")
     name = f"{safe_stem(label, fallback='Batch')} {stamp}"
-    return Path(first_file).parent / OUTPUT_FOLDER / name
+    return (base if base is not None else Path(first_file).parent / OUTPUT_FOLDER) / name
 
 
 def run_batch(

@@ -62,7 +62,7 @@ def save_with_fallback(folder: Path, results: list[PdfResult]) -> tuple[list[Pat
         fallback = fallback / folder.name
     return (
         [write_new_file(fallback, r.suggested_name, r.data) for r in results],
-        " (the original's folder is read-only)",
+        " (Docly couldn't write to the usual folder)",
     )
 
 

@@ -62,7 +62,7 @@ def test_read_only_folder_falls_back_to_pictures(qtbot, theme_manager, tmp_path:
     c.show_results([result("a_pages-1.pdf"), result("a_pages-2.pdf")], tmp_path / "a.pdf", split=True)
     paths = c.save()
     assert paths[0].parent == pictures / "a_split"
-    assert "read-only" in c.saved_label.text()
+    assert "couldn't write to the usual folder" in c.saved_label.text()
 
 
 def test_error_and_idle(qtbot, theme_manager) -> None:

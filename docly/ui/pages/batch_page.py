@@ -387,8 +387,8 @@ class BatchPage(BasePage):
         )  # fmt: skip
 
     def output_folder(self, settings: BatchSettings) -> Path:
-        """The dated folder next to the first file, or under Pictures if that's read-only."""
-        folder = batch_folder(self.files[0], settings.label)
+        """The dated folder in the output folder (Settings), or under Pictures if that's read-only."""
+        folder = batch_folder(self.files[0], settings.label, base=desktop.output_folder_for(self.files[0]))
         try:
             folder.parent.mkdir(parents=True, exist_ok=True)
             probe = folder.parent / ".docly-write-test"
@@ -397,7 +397,7 @@ class BatchPage(BasePage):
             return folder
         except OSError:
             fallback = desktop.pictures_output_folder() / folder.name
-            self.show_banner(f"The files' folder is read-only, so results go to {fallback.parent}.", "info")
+            self.show_banner(f"Docly can't write to {folder.parent}, so results go to {fallback.parent}.", "info")
             return fallback
 
     def start(self) -> None:

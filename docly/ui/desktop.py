@@ -37,6 +37,22 @@ def pictures_output_folder() -> Path:
     return base / OUTPUT_FOLDER_NAME
 
 
+#: Set from Settings: save everything into this folder instead of next to the original.
+_custom_folder: Path | None = None
+
+
+def set_custom_output_folder(folder: Path | None) -> None:
+    global _custom_folder
+    _custom_folder = folder
+
+
+def custom_output_folder() -> Path | None:
+    return _custom_folder
+
+
 def output_folder_for(source: Path) -> Path:
-    """Default save folder: ``Docly_Output`` next to the original file."""
+    """Where Save puts results: the folder chosen in Settings, otherwise
+    ``Docly_Output`` next to the original file."""
+    if _custom_folder is not None:
+        return _custom_folder
     return source.parent / OUTPUT_FOLDER_NAME

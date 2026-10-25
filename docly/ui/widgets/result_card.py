@@ -179,7 +179,7 @@ class ResultCard(Card):
             log.info("Default output folder not writable (%s); using Pictures", first_error)
             try:
                 path = write_new_file(desktop.pictures_output_folder(), name, self._result.data)
-                note = " (the photo's own folder is read-only)"
+                note = " (Docly couldn't write to the usual folder)"
             except FileAccessError as exc:
                 self._show_saved(None, str(exc))
                 return None

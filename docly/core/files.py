@@ -6,6 +6,7 @@ and turn OS errors into readable :class:`FileAccessError` messages.
 
 from __future__ import annotations
 
+import errno
 import os
 import re
 import sys
@@ -39,6 +40,64 @@ def os_path(path: Path) -> str:
     return "\\\\?\\" + absolute
 
 
+#: Windows "cloud file" errors (OneDrive / iCloud files that are online-only).
+_CLOUD_ERRORS = range(358, 405)
+_DISK_FULL_WINERRORS = {39, 112}  # ERROR_HANDLE_DISK_FULL, ERROR_DISK_FULL
+EMPTY_HINT = "If it's in OneDrive or still downloading, wait for it to finish and try again."
+
+
+def os_problem(exc: OSError) -> str:
+    """A plain-words reason for an OS error (disk full, OneDrive, too long…)."""
+    winerror = getattr(exc, "winerror", None)
+    if exc.errno == errno.ENOSPC or winerror in _DISK_FULL_WINERRORS:
+        return "the disk is full. Free some space or choose another folder"
+    if winerror in _CLOUD_ERRORS:
+        return (
+            "it's stored online only (OneDrive) and couldn't be downloaded. "
+            "Check your internet, or right-click it in File Explorer and choose \"Always keep on this device\""
+        )
+    if exc.errno == errno.ENAMETOOLONG or winerror == 206:
+        return "the path is too long. Move it to a shorter folder path"
+    if exc.errno == errno.EROFS:
+        return "the drive is read-only"
+    return str(exc.strerror or exc)
+
+
+#: First bytes → what the file really is, for "this .jpg is actually a PDF".
+_SIGNATURES: tuple[tuple[bytes, int, str], ...] = (
+    (b"%PDF-", 0, "a PDF"),
+    (b"\xff\xd8\xff", 0, "a JPEG photo"),
+    (b"\x89PNG\r\n\x1a\n", 0, "a PNG image"),
+    (b"GIF8", 0, "a GIF image"),
+    (b"BM", 0, "a BMP image"),
+    (b"II*\x00", 0, "a TIFF image"),
+    (b"MM\x00*", 0, "a TIFF image"),
+    (b"WEBP", 8, "a WebP image"),
+    (b"ftyp", 4, "a HEIC photo or video"),
+    (b"PK\x03\x04", 0, "a ZIP file (or a Word/Excel document)"),
+    (b"Rar!", 0, "a RAR archive"),
+    (b"7z\xbc\xaf", 0, "a 7-Zip archive"),
+    (b"\xd0\xcf\x11\xe0", 0, "an old Office document"),
+)
+
+
+def describe_content(data: bytes) -> str | None:
+    """What ``data`` looks like from its first bytes, e.g. ``"a PDF"``; None if unknown."""
+    for magic, offset, label in _SIGNATURES:
+        if data[offset : offset + len(magic)] == magic:
+            if label == "a ZIP file (or a Word/Excel document)":
+                head = data[:2000]
+                if b"word/" in head:
+                    return "a Word document"
+                if b"xl/" in head:
+                    return "an Excel file"
+            return label
+    head = data[:512].lstrip().lower()
+    if head.startswith((b"<!doctype html", b"<html")):
+        return "a web page (HTML) — it may be a download that failed"
+    return None
+
+
 def read_bytes(path: Path, max_bytes: int) -> bytes:
     """Read a whole file, refusing anything bigger than ``max_bytes``."""
     try:
@@ -48,7 +107,7 @@ def read_bytes(path: Path, max_bytes: int) -> bytes:
     except PermissionError:
         raise FileAccessError(f"Docly doesn't have permission to open {path.name}.") from None
     except OSError as exc:
-        raise FileAccessError(f"Couldn't open {path.name}: {exc.strerror or exc}") from None
+        raise FileAccessError(f"Couldn't open {path.name}: {os_problem(exc)}.") from None
     if os.path.isdir(os_path(path)):
         raise FileAccessError(f"{path.name} is a folder, not a file.")
     if size > max_bytes:
@@ -63,7 +122,7 @@ def read_bytes(path: Path, max_bytes: int) -> bytes:
             f"Docly doesn't have permission to open {path.name}. It may be open in another program."
         ) from None
     except OSError as exc:
-        raise FileAccessError(f"Couldn't read {path.name}: {exc.strerror or exc}") from None
+        raise FileAccessError(f"Couldn't read {path.name}: {os_problem(exc)}.") from None
     if len(data) > max_bytes:  # the file grew after we checked its size
         raise FileTooLargeError(f"{path.name} is larger than {max_bytes / 1_048_576:.0f} MB.")
     return data
@@ -110,7 +169,7 @@ def write_file(path: Path, data: bytes) -> Path:
         ) from None
     except OSError as exc:
         _remove_quietly(temp)
-        raise FileAccessError(f"Couldn't save {path.name}: {exc.strerror or exc}") from None
+        raise FileAccessError(f"Couldn't save {path.name}: {os_problem(exc)}.") from None
     return path
 
 
@@ -130,13 +189,11 @@ def write_new_file(folder: Path, file_name: str, data: bytes) -> Path:
     try:
         os.makedirs(os_path(folder), exist_ok=True)
     except OSError as exc:
-        raise FileAccessError(f"Couldn't create the folder {folder}: {exc.strerror or exc}") from None
+        raise FileAccessError(f"Couldn't create the folder {folder}: {os_problem(exc)}.") from None
     for _attempt in range(100):
         target = unique_path(folder, file_name)
         try:
-            with open(os_path(target), "xb") as handle:
-                handle.write(data)
-            return target
+            handle = open(os_path(target), "xb")  # noqa: SIM115 (closed below)
         except FileExistsError:
             continue  # someone took the name in between; try the next one
         except PermissionError:
@@ -144,5 +201,12 @@ def write_new_file(folder: Path, file_name: str, data: bytes) -> Path:
                 f"Docly can't save into {folder}. Choose a folder you can write to."
             ) from None
         except OSError as exc:
-            raise FileAccessError(f"Couldn't save {target.name}: {exc.strerror or exc}") from None
+            raise FileAccessError(f"Couldn't save {target.name}: {os_problem(exc)}.") from None
+        try:
+            with handle:
+                handle.write(data)
+        except OSError as exc:
+            _remove_quietly(target)  # never leave a half-written file (e.g. disk full)
+            raise FileAccessError(f"Couldn't save {target.name}: {os_problem(exc)}.") from None
+        return target
     raise FileAccessError(f"Couldn't find a free file name in {folder}.")

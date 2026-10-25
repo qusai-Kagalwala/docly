@@ -19,13 +19,14 @@ class AboutDialog(QDialog):
     """
 
     tourRequested = Signal()
+    shortcutsRequested = Signal()
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("AboutDialog")
         self.setWindowTitle(f"About {config.APP_NAME}")
         self.setModal(True)
-        self.setFixedWidth(440)
+        self.setMinimumWidth(440)  # grows for wider Windows fonts
         # Remove the "?" help button some Windows dialogs show.
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
 
@@ -94,6 +95,11 @@ class AboutDialog(QDialog):
         self.tour_button.setObjectName("about_tour")
         self.tour_button.clicked.connect(self.tourRequested)
         buttons.addWidget(self.tour_button)
+        self.shortcuts_button = QPushButton("Keyboard shortcuts")
+        self.shortcuts_button.setObjectName("about_shortcuts")
+        self.shortcuts_button.setToolTip("F1")
+        self.shortcuts_button.clicked.connect(self.shortcutsRequested)
+        buttons.addWidget(self.shortcuts_button)
         buttons.addStretch(1)
         self.close_button = QPushButton("Close")
         self.close_button.setObjectName("about_close")

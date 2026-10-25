@@ -121,7 +121,7 @@ def test_truncated_jpeg(tmp_path: Path) -> None:
     "content,match",
     [
         (b"just some text pretending to be a photo", "isn't an image"),
-        (b"%PDF-1.7\n%stuff", "isn't an image"),
+        (b"%PDF-1.7\n%stuff", "actually a PDF, not a photo"),
         (b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00", "HEIC"),
     ],
 )

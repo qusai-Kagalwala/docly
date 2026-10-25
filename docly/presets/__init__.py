@@ -9,22 +9,8 @@ Usage::
         print(preset.name, preset.kb_range_text)
 """
 
-from docly.presets.loader import (
-    PresetIssue,
-    PresetLoadResult,
-    default_presets,
-    load_presets,
-    merge_presets,
-    parse_presets,
-)
-from docly.presets.models import (
-    BYTES_PER_KB,
-    Category,
-    FileFormat,
-    Preset,
-    PresetKind,
-    region_name,
-)
+from docly.presets.loader import PresetIssue, PresetLoadResult, default_presets, load_presets, merge_presets, parse_presets
+from docly.presets.models import BYTES_PER_KB, Category, FileFormat, Preset, PresetKind, region_name
 
 __all__ = [
     "BYTES_PER_KB",

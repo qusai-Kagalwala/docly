@@ -17,16 +17,7 @@ from __future__ import annotations
 from enum import Enum
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import (
-    QImage,
-    QKeyEvent,
-    QMouseEvent,
-    QPainter,
-    QPainterPath,
-    QPaintEvent,
-    QPen,
-    QResizeEvent,
-)
+from PySide6.QtGui import QImage, QKeyEvent, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPen, QResizeEvent
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from docly.core.resize import CropBox

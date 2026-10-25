@@ -27,10 +27,9 @@ import sys
 from pathlib import Path
 
 from docly.core.errors import DoclyError, InvalidPageRangeError, PasswordRequiredError, WrongPasswordError
-from docly.core.files import write_new_file
-from docly.core.image_pdf import PageSize
-from docly.core.files import read_bytes
+from docly.core.files import read_bytes, write_new_file
 from docly.core.image_io import MAX_FILE_BYTES
+from docly.core.image_pdf import PageSize
 from docly.core.pdf_compress import apply_to_result
 from docly.core.pdf_fill import (
     BLACK,

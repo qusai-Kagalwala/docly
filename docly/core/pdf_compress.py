@@ -30,8 +30,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 
 import pikepdf
-from PIL import Image
 from pikepdf import Name
+from PIL import Image
 
 from docly.core.compress import CancelCheck
 from docly.core.errors import CancelledError, CorruptPdfError

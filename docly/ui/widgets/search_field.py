@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent
 from PySide6.QtGui import QAction, QIcon, QPalette
-from PySide6.QtWidgets import QLineEdit, QWidget
+from PySide6.QtWidgets import QLineEdit, QToolButton, QWidget
 
 from docly.ui.icons import make_icon, render_icon
 
@@ -25,6 +25,13 @@ class SearchField(QLineEdit):
         self.clear_action.setToolTip("Clear search")
         self.clear_action.triggered.connect(self._clear)
         self.addAction(self.clear_action, QLineEdit.ActionPosition.TrailingPosition)
+        self.search_action.setText("Search")
+        # The line edit turns each action into a small tool button; name them for screen readers.
+        for button in self.findChildren(QToolButton):
+            action = button.defaultAction()
+            if action is not None:
+                button.setAccessibleName(action.text())
+                button.setToolTip(action.toolTip() or action.text())
         self.textChanged.connect(self._update_clear)
         self._paint_icons()
         self._update_clear(self.text())

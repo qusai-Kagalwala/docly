@@ -18,13 +18,8 @@ from pathlib import Path
 import pikepdf
 from pikepdf import Name
 
-from docly.core.errors import (
-    CorruptPdfError,
-    FileTooLargeError,
-    PasswordRequiredError,
-    WrongPasswordError,
-)
-from docly.core.files import read_bytes
+from docly.core.errors import CorruptPdfError, FileTooLargeError, PasswordRequiredError, WrongPasswordError
+from docly.core.files import EMPTY_HINT, describe_content, read_bytes
 from docly.logger import get_logger
 
 log = get_logger(__name__)
@@ -83,11 +78,14 @@ def open_pdf(path: Path, password: str | None = None) -> OpenedPdf:
 def open_pdf_bytes(data: bytes, name: str = "document.pdf", password: str | None = None) -> OpenedPdf:
     """Open PDF bytes safely (same rules as :func:`open_pdf`)."""
     if not data:
-        raise CorruptPdfError(f"{name} is empty (0 bytes).")
+        raise CorruptPdfError(f"{name} is empty (0 bytes). {EMPTY_HINT}")
     if len(data) > MAX_PDF_BYTES:
         raise FileTooLargeError(f"{name} is larger than {MAX_PDF_BYTES // 1_048_576} MB, Docly's limit for PDFs.")
     if not is_pdf(data):
-        raise CorruptPdfError(f"{name} isn't a PDF file.")
+        kind = describe_content(data)
+        if kind is not None and kind.endswith(("photo", "image")):
+            raise CorruptPdfError(f"{name} is actually {kind}, not a PDF. Rename it to the right extension and add it as a photo.")
+        raise CorruptPdfError(f"{name} is actually {kind}, not a PDF." if kind else f"{name} isn't a PDF file.")
 
     try:
         pdf = pikepdf.open(io.BytesIO(data), password=password or "")

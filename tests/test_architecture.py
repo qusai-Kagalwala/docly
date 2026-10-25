@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -72,12 +73,21 @@ def _is_emoji(char: str) -> bool:
     return char in BANNED_SYMBOLS or 0x1F000 <= code <= 0x1FAFF or code == 0xFE0F
 
 
+def _repo_files(skip: set[str]):  # noqa: ANN202
+    """Every file in the repo, without walking into skipped folders (a
+    virtual environment alone holds tens of thousands of files)."""
+    for folder, subfolders, names in os.walk(ROOT):
+        subfolders[:] = [d for d in subfolders if d not in skip and not d.startswith(".")]
+        for name in names:
+            yield Path(folder) / name
+
+
 def test_no_emoji_in_the_repository() -> None:
     suffixes = {".py", ".json", ".md", ".txt", ".toml", ".qss", ".iss", ".cfg"}
     skip = {".venv", "venv", ".git", "__pycache__", "build", "dist", ".pytest_cache"}
     found = []
-    for path in ROOT.rglob("*"):
-        if path.suffix not in suffixes or skip.intersection(path.relative_to(ROOT).parts):
+    for path in _repo_files(skip):
+        if path.suffix not in suffixes:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for number, line in enumerate(text.splitlines(), start=1):

@@ -7,15 +7,7 @@ password).
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import (
-    QCheckBox,
-    QDialog,
-    QDialogButtonBox,
-    QLabel,
-    QLineEdit,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QCheckBox, QDialog, QDialogButtonBox, QLabel, QLineEdit, QVBoxLayout, QWidget
 
 from docly.ui.widgets.style import set_style_prop
 
@@ -44,6 +36,7 @@ class PasswordDialog(QDialog):
         layout.addWidget(hint)
 
         self.field = QLineEdit()
+        self.field.setAccessibleName("Password")
         self.field.setEchoMode(QLineEdit.EchoMode.Password)
         self.field.setPlaceholderText("Password")
         self.field.setAccessibleName("Password")

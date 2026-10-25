@@ -256,6 +256,7 @@ class PdfPage(BasePage):
         card.body.addWidget(self.split_mode)
 
         self.split_every = QSpinBox()
+        self.split_every.setAccessibleName("Pages per file")
         self.split_every.setRange(1, 999)
         self.split_every.setValue(2)
         self.split_every.setPrefix("Every ")
@@ -263,6 +264,7 @@ class PdfPage(BasePage):
         card.body.addWidget(self.split_every)
 
         self.split_ranges = QLineEdit()
+        self.split_ranges.setAccessibleName("Page ranges")
         self.split_ranges.setPlaceholderText("e.g. 1-3, 4, 5-")
         self.split_ranges.setToolTip("One PDF per range. Page numbers are as shown in the grid.")
         card.body.addWidget(self.split_ranges)

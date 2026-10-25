@@ -8,7 +8,7 @@ import threading
 from collections.abc import Callable
 from types import TracebackType
 
-from PySide6.QtCore import QMessageLogContext, Qt, QtMsgType, QTimer, qInstallMessageHandler
+from PySide6.QtCore import QMessageLogContext, Qt, QTimer, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QFont, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 

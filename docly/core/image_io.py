@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
 from docly.core.errors import CorruptImageError, FileTooLargeError, ImageTooLargeError, UnsupportedFormatError
-from docly.core.files import read_bytes
+from docly.core.files import EMPTY_HINT, describe_content, read_bytes
 from docly.logger import get_logger
 
 log = get_logger(__name__)
@@ -81,7 +81,7 @@ def load_image_bytes(data: bytes, name: str = "image", keep_alpha: bool = False)
     filling them with white, e.g. for placing a signature on a PDF.
     """
     if not data:
-        raise CorruptImageError(f"{name} is empty (0 bytes).")
+        raise CorruptImageError(f"{name} is empty (0 bytes). {EMPTY_HINT}")
     if len(data) > MAX_FILE_BYTES:
         raise ImageTooLargeError(f"{name} is over the {MAX_FILE_BYTES // 1_048_576} MB limit.")
     if _looks_like_heic(data):
@@ -108,6 +108,16 @@ def _looks_like_heic(data: bytes) -> bool:
     return data[4:8] == b"ftyp" and data[8:12] in _HEIC_BRANDS
 
 
+def _not_an_image(data: bytes, name: str) -> str:
+    """Say what the file really is when its extension lies (e.g. a PDF named .jpg)."""
+    kind = describe_content(data)
+    if kind == "a PDF":
+        return f"{name} is actually a PDF, not a photo. Open it on the PDF page (or Fill & Sign)."
+    if kind is not None:
+        return f"{name} is actually {kind}, not an image Docly can open. Use {FRIENDLY_FORMATS}."
+    return f"{name} isn't an image Docly can open. Use {FRIENDLY_FORMATS}."
+
+
 def _probe(data: bytes, name: str) -> tuple[str, int, int]:
     """Read only the header: real format and pixel size."""
     try:
@@ -115,7 +125,7 @@ def _probe(data: bytes, name: str) -> tuple[str, int, int]:
             fmt = probe.format or ""
             width, height = probe.size
     except UnidentifiedImageError:
-        raise UnsupportedFormatError(f"{name} isn't an image Docly can open. Use {FRIENDLY_FORMATS}.") from None
+        raise UnsupportedFormatError(_not_an_image(data, name)) from None
     except Image.DecompressionBombError:
         raise ImageTooLargeError(f"{name} has too many pixels to open safely.") from None
     except Exception as exc:  # any decoder crash on a hostile file

@@ -39,7 +39,7 @@ def test_unicode_name(tmp_path: Path) -> None:
     [
         (b"", "empty"),
         (b"hello, I am a text file pretending to be a PDF", "isn't a PDF"),
-        (b"\x89PNG\r\n\x1a\n" + b"0" * 100, "isn't a PDF"),
+        (b"\x89PNG\r\n\x1a\n" + b"0" * 100, "actually a PNG image, not a PDF"),
         (b"%PDF-1.7\n" + b"garbage " * 200, "damaged and can't be repaired"),
     ],
 )

@@ -27,6 +27,17 @@ from docly.ui.theme import ThemeManager  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
+def _reset_app_wide_settings():
+    """Settings the Settings page applies app-wide (output folder, reduce
+    motion) must not leak from one test into the next."""
+    yield
+    from docly.ui import desktop, motion
+
+    desktop.set_custom_output_folder(None)
+    motion.set_reduce_motion(False)
+
+
+@pytest.fixture(autouse=True)
 def _delete_closed_widgets(request: pytest.FixtureRequest):
     """Really delete widgets closed by a test before the next one starts.
 

@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 import pikepdf
-from PIL import Image
 from pikepdf import Array, Dictionary, Name
+from PIL import Image
 
 from docly.core.image_io import LoadedImage, load_image_bytes
 

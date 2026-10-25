@@ -73,7 +73,7 @@ def test_read_only_folder_falls_back_to_pictures(card, passing, photo_file: Path
     card.show_result(passing, photo_file)
     saved = card.save()
     assert saved is not None and saved.parent == tmp_path / "Pictures" / "Docly_Output"
-    assert "read-only" in card.saved_label.text()
+    assert "couldn't write to the usual folder" in card.saved_label.text()
 
 
 def test_save_error_is_shown(card, passing, photo_file: Path, tmp_path: Path, monkeypatch) -> None:

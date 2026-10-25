@@ -77,17 +77,20 @@ class ItemPanel(Card):
         theme.themeChanged.connect(lambda t: self.highlighter.set_colour(QColor(t.danger)))
 
         self.date_format = QComboBox()
+        self.date_format.setAccessibleName("Date format")
         self.date_format.addItems(list(DATE_FORMATS))
         self.date_row = _row("Format", self.date_format)
         self.body.addWidget(self.date_row)
 
         self.size = QSpinBox()
+        self.size.setAccessibleName("Size")
         self.size.setRange(4, 72)
         self.size.setSuffix(" pt")
         self.size_row = _row("Size", self.size)
         self.body.addWidget(self.size_row)
 
         self.width = QSpinBox()
+        self.width.setAccessibleName("Width")
         self.width.setRange(20, 600)
         self.width.setSuffix(" pt")
         self.width_row = _row("Width", self.width)

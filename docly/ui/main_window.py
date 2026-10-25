@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from docly import config
@@ -22,10 +23,12 @@ from docly.ui.pages.photo_page import PhotoPage
 from docly.ui.pages.settings_page import SettingsPage
 from docly.ui.pages.sign_page import SignPage
 from docly.ui.pages.signature_page import SignaturePage
+from docly.ui.shortcuts import ShortcutsDialog
 from docly.ui.sidebar import NavItem, Sidebar
 from docly.ui.theme import ThemeManager, Tokens
 from docly.ui.tour import TourOverlay, TourStep
 from docly.ui.widgets.pdf_result_card import PdfResultCard
+from docly.ui.widgets.preset_picker import PresetPicker
 from docly.ui.widgets.result_card import ResultCard
 from docly.ui.widgets.toast import ToastHost
 
@@ -83,6 +86,14 @@ class MainWindow(QMainWindow):
         signature, sign = self.page("signature"), self.page("sign")
         assert isinstance(signature, SignaturePage) and isinstance(sign, SignPage)
         signature.signatureMade.connect(sign.set_last_signature)
+
+        settings = self.page("settings")
+        assert isinstance(settings, SettingsPage)
+        settings.tourRequested.connect(self.start_tour)
+        settings.shortcutsRequested.connect(self.show_shortcuts)
+        self._shortcuts_dialog: ShortcutsDialog | None = None
+        self._remember_presets()
+        self._make_shortcuts()
 
         self.toasts = ToastHost(root, theme)
         for card in root.findChildren(ResultCard) + root.findChildren(PdfResultCard):
@@ -218,6 +229,79 @@ class MainWindow(QMainWindow):
         self.tour = None
         log.info("Tour %s", "completed" if completed else "skipped")
 
+    # ----- keyboard ---------------------------------------------------
+    def _make_shortcuts(self) -> None:
+        """App-wide keys: Ctrl+1…7 pages, Ctrl+O open, Ctrl+S save, F1 help."""
+        self.shortcuts: dict[str, QShortcut] = {}
+
+        def add(keys: str, slot) -> None:  # noqa: ANN001
+            shortcut = QShortcut(QKeySequence(keys), self)
+            shortcut.activated.connect(slot)
+            self.shortcuts[keys] = shortcut
+
+        for number, page_id in enumerate(self.page_ids()[:9], start=1):
+            add(f"Ctrl+{number}", lambda pid=page_id: self.show_page(pid))
+        add("Ctrl+O", self.open_on_current_page)
+        add("Ctrl+S", self.save_on_current_page)
+        add("F1", self.show_shortcuts)
+
+    def current_page(self) -> BasePage:
+        return self.pages[self.stack.currentIndex()]
+
+    def open_on_current_page(self) -> None:
+        """Ctrl+O: the current page's file picker (Home goes to Photo first)."""
+        page = self.current_page()
+        if not hasattr(page, "browse"):
+            if page.PAGE_ID != "home":
+                return
+            self.show_page("photo")
+            page = self.current_page()
+        page.browse()  # type: ignore[attr-defined]
+
+    def save_on_current_page(self) -> bool:
+        """Ctrl+S: press the current page's Save button if it's ready."""
+        card = getattr(self.current_page(), "result_card", None)
+        button = getattr(card, "save_button", None)
+        if button is None or not button.isEnabled() or not button.isVisible():
+            return False
+        button.click()
+        return True
+
+    def _about_to_shortcuts(self) -> None:
+        if self._about is not None:
+            self._about.accept()
+        self.show_shortcuts()
+
+    def show_shortcuts(self) -> ShortcutsDialog:
+        if self._shortcuts_dialog is None:
+            self._shortcuts_dialog = ShortcutsDialog(self.theme, self)
+        self._shortcuts_dialog.open()
+        return self._shortcuts_dialog
+
+    # ----- remembered presets ---------------------------------------------
+    def preset_pickers(self) -> dict[str, PresetPicker]:
+        """Every preset picker by a stable key, e.g. ``"batch/1"``."""
+        pickers: dict[str, PresetPicker] = {}
+        for page in self.pages:
+            for index, picker in enumerate(page.findChildren(PresetPicker)):
+                pickers[f"{page.PAGE_ID}/{index}"] = picker
+        return pickers
+
+    def _remember_presets(self) -> None:
+        store = self.theme.store
+        for key, picker in self.preset_pickers().items():
+            if store.remember_presets():
+                last = store.last_preset(key)
+                if last is not None and picker.select(last):
+                    log.debug("Restored preset %s on %s", last, key)
+            picker.presetChanged.connect(lambda preset, k=key: self._on_preset_picked(k, preset))
+
+    def _on_preset_picked(self, key: str, preset: object) -> None:
+        store = self.theme.store
+        preset_id = getattr(preset, "id", None)
+        if store.remember_presets() and preset_id:
+            store.set_last_preset(key, preset_id)
+
     # ----- toasts -----------------------------------------------------
     def _on_saved(self, saved: Path | list[Path]) -> None:
         """A result card saved something: confirm it with a toast."""
@@ -234,6 +318,7 @@ class MainWindow(QMainWindow):
         if self._about is None:
             self._about = AboutDialog(self.theme, self)
             self._about.tourRequested.connect(self.start_tour)
+            self._about.shortcutsRequested.connect(self._about_to_shortcuts)
         self._about.open()
         return self._about
 
