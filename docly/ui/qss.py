@@ -69,7 +69,7 @@ _TEMPLATE = Template(
 QWidget {
     color: $text;
 }
-QMainWindow, #AppRoot, QStackedWidget#PageStack {
+QMainWindow, #AppRoot, QStackedWidget#PageStack, QWidget#PageCover {
     background: $bg;
 }
 QScrollArea, QScrollArea > QWidget > QWidget#PageBody {

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QStackedWidget, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from docly import config
 from docly.logger import get_logger
@@ -118,18 +118,22 @@ class MainWindow(QMainWindow):
         log.debug("Showing page %s", self.pages[index].PAGE_ID)
 
     def _crossfade(self) -> None:
-        """Fade the old page out over the new one (a snapshot, so the new page
-        is live and clickable straight away)."""
+        """Bring the new page in by fading away a plain cover in the window's
+        background colour. The old page is never shown semi-transparent (a
+        fading snapshot of it left a "ghost" over the new page), and the new
+        page is live and clickable straight away."""
         if not motion.enabled() or not self.stack.isVisible():
             return
-        snapshot = QLabel(self.stack)
-        snapshot.setObjectName("PageSnapshot")
-        snapshot.setPixmap(self.stack.grab())
-        snapshot.setGeometry(self.stack.rect())
-        snapshot.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        snapshot.show()
-        snapshot.raise_()
-        motion.fade_out_and_delete(snapshot, motion.FAST_MS)
+        for old in self.stack.findChildren(QWidget, "PageCover"):
+            old.deleteLater()  # a quick second click: start again
+        cover = QWidget(self.stack)
+        cover.setObjectName("PageCover")
+        cover.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        cover.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        cover.setGeometry(self.stack.rect())
+        cover.show()
+        cover.raise_()
+        motion.fade_out_and_delete(cover, motion.NORMAL_MS)
 
     def page(self, page_id: str) -> BasePage:
         """The page object with ``page_id`` (raises ``KeyError`` if unknown)."""

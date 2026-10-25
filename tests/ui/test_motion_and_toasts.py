@@ -56,15 +56,25 @@ def test_fade_in_animates_and_cleans_up(qtbot, motion_on) -> None:
 
 def test_page_switch_crossfades(qtbot, main_window: MainWindow, motion_on) -> None:
     main_window.show_page("photo")
-    snapshots = main_window.stack.findChildren(QLabel, "PageSnapshot")
-    assert snapshots, "old page snapshot should fade over the new one"
+    covers = main_window.stack.findChildren(QWidget, "PageCover")
+    assert len(covers) == 1, "a background-coloured cover should fade off the new page"
+    assert covers[0].geometry() == main_window.stack.rect()
     assert main_window.current_page_id() == "photo"  # the real page is live at once
-    qtbot.waitUntil(lambda: not main_window.stack.findChildren(QLabel, "PageSnapshot"), timeout=2000)
+    qtbot.waitUntil(lambda: not main_window.stack.findChildren(QWidget, "PageCover"), timeout=2000)
+
+
+def test_quick_clicks_leave_one_cover(qtbot, main_window: MainWindow, motion_on) -> None:
+    main_window.show_page("photo")
+    main_window.show_page("pdf")
+    main_window.show_page("batch")
+    qtbot.wait(10)  # let deleteLater run
+    assert len(main_window.stack.findChildren(QWidget, "PageCover")) <= 1
+    assert main_window.current_page_id() == "batch"
 
 
 def test_no_crossfade_when_motion_is_off(main_window: MainWindow) -> None:
     main_window.show_page("pdf")
-    assert not main_window.stack.findChildren(QLabel, "PageSnapshot")
+    assert not main_window.stack.findChildren(QWidget, "PageCover")
 
 
 def test_sidebar_bar_sits_beside_the_current_item(qtbot, main_window: MainWindow) -> None:
