@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
-from docly.core.errors import CorruptImageError, ImageTooLargeError, UnsupportedFormatError
+from docly.core.errors import CorruptImageError, FileTooLargeError, ImageTooLargeError, UnsupportedFormatError
 from docly.core.files import read_bytes
 from docly.logger import get_logger
 
@@ -65,7 +65,12 @@ class LoadedImage:
 
 def load_image(path: Path) -> LoadedImage:
     """Open an image file safely. Raises a :class:`DoclyError` subclass."""
-    data = read_bytes(path, MAX_FILE_BYTES)
+    try:
+        data = read_bytes(path, MAX_FILE_BYTES)
+    except ImageTooLargeError:
+        raise
+    except FileTooLargeError as exc:
+        raise ImageTooLargeError(str(exc)) from None
     return load_image_bytes(data, path.name)
 
 

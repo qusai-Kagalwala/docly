@@ -11,7 +11,7 @@ import re
 import sys
 from pathlib import Path
 
-from docly.core.errors import FileAccessError, ImageTooLargeError
+from docly.core.errors import FileAccessError, FileTooLargeError
 
 #: Characters Windows does not allow in file names.
 _FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -52,7 +52,7 @@ def read_bytes(path: Path, max_bytes: int) -> bytes:
     if os.path.isdir(os_path(path)):
         raise FileAccessError(f"{path.name} is a folder, not a file.")
     if size > max_bytes:
-        raise ImageTooLargeError(
+        raise FileTooLargeError(
             f"{path.name} is {size / 1_048_576:.1f} MB; the limit is {max_bytes / 1_048_576:.0f} MB."
         )
     try:
@@ -65,7 +65,7 @@ def read_bytes(path: Path, max_bytes: int) -> bytes:
     except OSError as exc:
         raise FileAccessError(f"Couldn't read {path.name}: {exc.strerror or exc}") from None
     if len(data) > max_bytes:  # the file grew after we checked its size
-        raise ImageTooLargeError(f"{path.name} is larger than {max_bytes / 1_048_576:.0f} MB.")
+        raise FileTooLargeError(f"{path.name} is larger than {max_bytes / 1_048_576:.0f} MB.")
     return data
 
 

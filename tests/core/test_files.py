@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from docly.core import files
-from docly.core.errors import FileAccessError, ImageTooLargeError
+from docly.core.errors import FileAccessError, FileTooLargeError
 
 
 @pytest.mark.parametrize(
@@ -62,7 +62,7 @@ def test_read_bytes_errors(tmp_path: Path) -> None:
         files.read_bytes(tmp_path, 100)
     big = tmp_path / "big.bin"
     big.write_bytes(b"x" * 200)
-    with pytest.raises(ImageTooLargeError):
+    with pytest.raises(FileTooLargeError):
         files.read_bytes(big, 100)
     assert files.read_bytes(big, 200) == b"x" * 200
 
