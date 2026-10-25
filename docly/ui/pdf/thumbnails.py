@@ -27,6 +27,7 @@ from PySide6.QtPdf import QPdfDocument
 
 from docly.core.image_io import load_image_bytes
 from docly.logger import get_logger
+from docly.ui.pdfium import PDFIUM_LOCK
 
 log = get_logger(__name__)
 
@@ -106,21 +107,23 @@ class _RenderJob(QRunnable):
                 image = QImage()
                 try:
                     if source.is_pdf:
-                        if key[0] not in documents:
-                            documents[key[0]] = _open_pdf(source, buffers)
-                        document = documents[key[0]]
-                        if document is not None and 0 <= key[1] < document.pageCount():
-                            image = render_pdf_thumb(document, key[1])
+                        with PDFIUM_LOCK:
+                            if key[0] not in documents:
+                                documents[key[0]] = _open_pdf(source, buffers)
+                            document = documents[key[0]]
+                            if document is not None and 0 <= key[1] < document.pageCount():
+                                image = render_pdf_thumb(document, key[1])
                     else:
                         image = render_image_thumb(source.data)
                 except Exception:  # never let one bad page stop the others
                     log.warning("Could not draw a thumbnail for %s", key, exc_info=True)
                 self.signals.rendered.emit(key, image)
         finally:
-            for document in documents.values():
-                if document is not None:
-                    document.close()
-                    document.deleteLater()
+            with PDFIUM_LOCK:
+                for document in documents.values():
+                    if document is not None:
+                        document.close()
+                        document.deleteLater()
             for buffer in buffers:
                 buffer.close()
             self.signals.done.emit()

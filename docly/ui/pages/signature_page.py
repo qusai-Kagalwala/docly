@@ -6,7 +6,7 @@ declarations.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
 from docly.core.compress import CancelCheck
@@ -41,6 +41,9 @@ class SignaturePage(ImageToolPage):
     ICON = "pen-line"
     PRESET_KINDS = (PresetKind.SIGNATURE, PresetKind.IMAGE)
     REPLACE_TEXT = "Replace image"
+
+    #: bytes of each new cleaned signature (Fill & Sign offers "use my signature").
+    signatureMade = Signal(object)
     RESET_TEXT = "Reset area"
 
     # ----- hooks --------------------------------------------------------
@@ -160,6 +163,7 @@ class SignaturePage(ImageToolPage):
 
     def on_result(self, result: ProcessResult) -> None:
         self.cleaned_view.set_data(result.data)
+        self.signatureMade.emit(result.data)
 
     def on_failure(self, message: str) -> None:
         self.cleaned_view.clear()

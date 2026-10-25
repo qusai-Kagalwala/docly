@@ -36,6 +36,17 @@ ICON_NAMES: tuple[str, ...] = (
     "compass",
     "star",
     "arrow-right",
+    # Fill & Sign
+    "type",
+    "calendar",
+    "check",
+    "signature",
+    "square",
+    "zoom-in",
+    "zoom-out",
+    "chevron-left",
+    "chevron-right",
+    "mouse-pointer-2",
     # PDF page toolbar
     "rotate-ccw",
     "rotate-cw",

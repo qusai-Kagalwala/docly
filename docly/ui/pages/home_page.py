@@ -28,6 +28,7 @@ FEATURES: tuple[Feature, ...] = (
     Feature("photo", "image", "Photo", "Crop and resize a photo to any portal's rules, and hit its KB limit."),
     Feature("signature", "pen-line", "Signature", "Clean up a phone photo of your signature: white or see-through background."),
     Feature("pdf", "file-text", "PDF", "Merge, reorder, split and shrink PDFs and photos to a size limit."),
+    Feature("sign", "signature", "Fill & Sign", "Type on forms, tick boxes, add the date and your signature."),
     Feature("batch", "layers", "Batch", "Prepare many files at once with one preset.", ready=False),
 )
 

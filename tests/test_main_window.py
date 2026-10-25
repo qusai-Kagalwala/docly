@@ -13,7 +13,7 @@ from docly.ui.main_window import MainWindow
 from docly.ui.settings_store import SettingsStore
 from docly.ui.theme import DARK, LIGHT, ThemeManager, ThemeMode
 
-EXPECTED_PAGES = ["home", "photo", "signature", "pdf", "batch", "settings"]
+EXPECTED_PAGES = ["home", "photo", "signature", "pdf", "sign", "batch", "settings"]
 
 
 def test_window_launches(main_window: MainWindow) -> None:

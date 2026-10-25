@@ -17,6 +17,7 @@ from docly.ui.pages.image_tool_page import ImageToolPage
 from docly.ui.pages.pdf_page import PdfPage
 from docly.ui.pages.photo_page import PhotoPage
 from docly.ui.pages.settings_page import SettingsPage
+from docly.ui.pages.sign_page import SignPage
 from docly.ui.pages.signature_page import SignaturePage
 from docly.ui.sidebar import NavItem, Sidebar
 from docly.ui.theme import ThemeManager, Tokens
@@ -25,7 +26,9 @@ from docly.ui.tour import TourOverlay, TourStep
 log = get_logger(__name__)
 
 #: Sidebar order. Later phases replace a page class, not this list.
-PAGE_CLASSES: tuple[type[BasePage], ...] = (HomePage, PhotoPage, SignaturePage, PdfPage, BatchPage, SettingsPage)
+PAGE_CLASSES: tuple[type[BasePage], ...] = (
+    HomePage, PhotoPage, SignaturePage, PdfPage, SignPage, BatchPage, SettingsPage,
+)  # fmt: skip
 
 
 class MainWindow(QMainWindow):
@@ -52,7 +55,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.pages: list[BasePage] = [
-            cls(theme, presets) if issubclass(cls, (ImageToolPage, PdfPage)) else cls(theme) for cls in PAGE_CLASSES
+            cls(theme, presets) if issubclass(cls, (ImageToolPage, PdfPage, SignPage)) else cls(theme) for cls in PAGE_CLASSES
         ]
         self.sidebar = Sidebar([NavItem(p.PAGE_ID, p.TITLE, p.ICON) for p in self.pages], theme)
         self.stack = QStackedWidget()
@@ -71,6 +74,9 @@ class MainWindow(QMainWindow):
         assert isinstance(home, HomePage)
         home.openPage.connect(self.show_page)
         home.tourRequested.connect(self.start_tour)
+        signature, sign = self.page("signature"), self.page("sign")
+        assert isinstance(signature, SignaturePage) and isinstance(sign, SignPage)
+        signature.signatureMade.connect(sign.set_last_signature)
 
         theme.themeChanged.connect(self._apply_tokens)
         self._apply_tokens(theme.tokens)
@@ -145,8 +151,9 @@ class MainWindow(QMainWindow):
             ),
             TourStep(
                 "PDFs",
-                "Combine PDFs and photos, drag pages into order, split them, and shrink to a size limit.",
-                lambda: [pdf.stack],
+                "Combine PDFs and photos, drag pages into order, split them, and shrink to a size limit. "
+                "Fill & Sign (next in the list) types on forms and adds your signature.",
+                lambda: [pdf.stack, nav["sign"]],
                 lambda: go("pdf"),
             ),
             TourStep(
