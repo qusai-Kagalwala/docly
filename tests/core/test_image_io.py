@@ -143,6 +143,7 @@ def test_decompression_bomb_is_refused() -> None:
         load_image_bytes(images.png_header_only(50_000, 50_000), "bomb.png")
 
 
+@pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")
 def test_just_over_pixel_limit_is_refused() -> None:
     with pytest.raises(ImageTooLargeError):
         load_image_bytes(images.png_header_only(12_000, 9_000), "big.png")  # 108 MP

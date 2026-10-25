@@ -191,10 +191,13 @@ class ThemeManager(QObject):
                 return
             self._tokens = new_tokens
             # Imported here to avoid a circular import (qss uses Tokens).
+            from docly.ui.icons import export_icon_svg
             from docly.ui.qss import build_stylesheet
 
+            arrow = export_icon_svg("chevron-down", new_tokens.text_muted)
+            arrow_url = arrow.as_posix() if arrow else None  # QSS wants forward slashes
             self._app.setPalette(build_palette(new_tokens))
-            self._app.setStyleSheet(build_stylesheet(new_tokens))
+            self._app.setStyleSheet(build_stylesheet(new_tokens, arrow_url))
             log.debug("Applied %s theme", new_tokens.name)
             self.themeChanged.emit(new_tokens)
         finally:

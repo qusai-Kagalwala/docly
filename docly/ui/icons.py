@@ -7,6 +7,7 @@ colour before rendering, so one SVG file works in both themes.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QRectF, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
@@ -28,6 +29,7 @@ ICON_NAMES: tuple[str, ...] = (
     "sun",
     "moon",
     "info",
+    "chevron-down",
 )
 
 
@@ -64,6 +66,28 @@ def render_icon(name: str, color: str, size: int = 18, dpr: float = 1.0) -> QPix
             log.warning("Icon could not be parsed: %s", name)
     pixmap.setDevicePixelRatio(dpr)
     return pixmap
+
+
+def export_icon_svg(name: str, color: str) -> Path | None:
+    """Write a recoloured copy of an icon to the cache folder for use in QSS.
+
+    Stylesheets can only load images from files (``url(...)``), so icons
+    that QSS draws, like the dropdown arrow, need a real file per colour.
+    Returns ``None`` if the cache folder can't be written.
+    """
+    svg = _svg_text(name)
+    if svg is None:
+        return None
+    folder = config.app_data_dir() / "cache" / "icons"
+    target = folder / f"{name}-{color.lstrip('#').lower()}.svg"
+    try:
+        if not target.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+            target.write_text(svg.replace("currentColor", color), encoding="utf-8")
+    except OSError:
+        log.warning("Could not write icon cache %s", target)
+        return None
+    return target
 
 
 def make_icon(name: str, color: str, size: int = 18, dpr: float = 1.0) -> QIcon:

@@ -128,8 +128,7 @@ def install_ctrl_c_handler(app: QApplication) -> QTimer:
 def load_and_log_presets() -> PresetLoadResult:
     """Load presets and record the outcome in the log.
 
-    Phase 4 hands the result to the Photo page; for now this proves the
-    presets load on a real machine.
+    Loaded once at startup and handed to the pages that need them.
     """
     result = default_presets()
     skipped = result.skipped_count
@@ -174,9 +173,9 @@ def run(argv: list[str] | None = None) -> int:
     sys.excepthook = make_exception_hook(lambda: holder.get("window"))
     threading.excepthook = _thread_exception_hook
 
-    load_and_log_presets()
+    presets = load_and_log_presets()
     theme = ThemeManager(app, SettingsStore())
-    window = MainWindow(theme)
+    window = MainWindow(theme, presets)
     holder["window"] = window
     window.show()
 

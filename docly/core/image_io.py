@@ -32,7 +32,16 @@ SUPPORTED_FORMATS = frozenset({"JPEG", "MPO", "PNG", "WEBP", "BMP", "TIFF", "GIF
 FRIENDLY_FORMATS = "JPG, PNG, WebP, BMP, TIFF or GIF"
 
 # Let Pillow itself refuse decompression bombs well above our own limit.
+# Between 1x and 2x the limit Pillow only warns; our own size check refuses
+# those, so the warning is noise. (Filtering it once here is thread-safe;
+# ``warnings.catch_warnings()`` inside worker threads is not.)
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+warnings.filterwarnings("ignore", category=Image.DecompressionBombWarning)
+
+# Pillow imports its format plugins lazily, the first time it meets a file
+# it doesn't recognise. Doing that import on a worker thread can crash, so
+# load them all now, on whichever thread imports this module (the UI thread).
+Image.init()
 
 _HEIC_BRANDS = (b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1", b"avif")
 WHITE = (255, 255, 255)
@@ -93,14 +102,12 @@ def _looks_like_heic(data: bytes) -> bool:
 def _probe(data: bytes, name: str) -> tuple[str, int, int]:
     """Read only the header: real format and pixel size."""
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            with Image.open(io.BytesIO(data)) as probe:
-                fmt = probe.format or ""
-                width, height = probe.size
+        with Image.open(io.BytesIO(data)) as probe:
+            fmt = probe.format or ""
+            width, height = probe.size
     except UnidentifiedImageError:
         raise UnsupportedFormatError(f"{name} isn't an image Docly can open. Use {FRIENDLY_FORMATS}.") from None
-    except (Image.DecompressionBombError, Image.DecompressionBombWarning):
+    except Image.DecompressionBombError:
         raise ImageTooLargeError(f"{name} has too many pixels to open safely.") from None
     except Exception as exc:  # any decoder crash on a hostile file
         raise CorruptImageError(f"{name} looks damaged and can't be opened ({type(exc).__name__}).") from None

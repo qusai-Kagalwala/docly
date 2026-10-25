@@ -89,6 +89,38 @@ def unique_path(folder: Path, file_name: str) -> Path:
     return candidate
 
 
+def write_file(path: Path, data: bytes) -> Path:
+    """Write ``data`` to exactly ``path`` (used after a "Save as" dialog,
+    where the user has already confirmed replacing an existing file).
+
+    Writes to a temporary file first and then swaps it in, so a crash or a
+    full disk never leaves a half-written file behind.
+    """
+    temp = path.with_name(f".{path.name}.docly-tmp")
+    try:
+        os.makedirs(os_path(path.parent), exist_ok=True)
+        with open(os_path(temp), "wb") as handle:
+            handle.write(data)
+        os.replace(os_path(temp), os_path(path))
+    except PermissionError:
+        _remove_quietly(temp)
+        raise FileAccessError(
+            f"Docly can't save {path.name} there. The file may be open in another program, "
+            "or the folder is read-only."
+        ) from None
+    except OSError as exc:
+        _remove_quietly(temp)
+        raise FileAccessError(f"Couldn't save {path.name}: {exc.strerror or exc}") from None
+    return path
+
+
+def _remove_quietly(path: Path) -> None:
+    try:
+        os.remove(os_path(path))
+    except OSError:
+        pass
+
+
 def write_new_file(folder: Path, file_name: str, data: bytes) -> Path:
     """Write ``data`` to a new file in ``folder``; never overwrites.
 

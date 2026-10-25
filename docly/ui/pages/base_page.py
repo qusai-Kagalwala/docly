@@ -26,6 +26,9 @@ class BasePage(QWidget):
     TITLE: str = ""
     SUBTITLE: str = ""
     ICON: str = "info"
+    #: False for pages that manage their own scrolling (e.g. a photo that
+    #: should fill the window rather than scroll with the page).
+    SCROLLS: bool = True
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -35,15 +38,17 @@ class BasePage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        outer.addWidget(scroll)
-
         body = QWidget()
         body.setObjectName("PageBody")
-        scroll.setWidget(body)
+        if self.SCROLLS:
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            scroll.setWidget(body)
+            outer.addWidget(scroll)
+        else:
+            outer.addWidget(body)
 
         self.content = QVBoxLayout(body)
         self.content.setContentsMargins(PAGE_PADDING, PAGE_PADDING, PAGE_PADDING, PAGE_PADDING)

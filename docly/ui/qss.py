@@ -181,6 +181,12 @@ QPushButton[variant="primary"]:pressed {
     background: $accent_pressed;
     border-color: $accent_pressed;
 }
+QPushButton[variant="primary"]:disabled {
+    background: $surface_alt;
+    color: $text_muted;
+    border-color: $border;
+    font-weight: 600;
+}
 QPushButton[variant="primary"]:focus {
     border-color: $accent_pressed;
 }
@@ -228,6 +234,17 @@ QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {
 QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {
     border-color: $accent;
 }
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+}
+QComboBox::down-arrow {
+    $combo_arrow
+    width: 14px;
+    height: 14px;
+}
 QComboBox QAbstractItemView {
     background: $surface;
     border: 1px solid $border;
@@ -264,6 +281,65 @@ QScrollBar::add-page, QScrollBar::sub-page {
     height: 0;
 }
 
+/* ---------- drop zone ---------- */
+QFrame#DropZone {
+    background: $surface;
+    border: 2px dashed $border_hover;
+    border-radius: 10px;
+}
+QFrame#DropZone:hover {
+    border-color: $accent;
+}
+QFrame#DropZone[active="true"] {
+    background: $accent_tint;
+    border-color: $accent;
+}
+
+/* ---------- banners (inline messages) ---------- */
+QLabel[banner] {
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+QLabel[banner="danger"]  { background: $danger_tint;  color: $danger_text; }
+QLabel[banner="warning"] { background: $warning_tint; color: $warning_text; }
+QLabel[banner="info"]    { background: $accent_tint;  color: $accent_text; }
+
+/* ---------- result status ---------- */
+QLabel#StatusMark {
+    font-size: 28px;
+}
+QLabel#StatusTitle {
+    font-size: 16px;
+    font-weight: 600;
+}
+QLabel#StatusTitle[state="pass"] { color: $success_text; }
+QLabel#StatusTitle[state="fail"] { color: $danger_text; }
+QFrame#OutputPreview {
+    background: $surface_alt;
+    border: 1px solid $border;
+    border-radius: 8px;
+}
+
+/* ---------- check boxes ---------- */
+QCheckBox {
+    spacing: 8px;
+    font-size: 13px;
+}
+
+/* ---------- progress ---------- */
+QProgressBar {
+    background: $surface_alt;
+    border: none;
+    border-radius: 2px;
+    max-height: 4px;
+    min-height: 4px;
+}
+QProgressBar::chunk {
+    background: $accent;
+    border-radius: 2px;
+}
+
 /* ---------- message boxes ---------- */
 QMessageBox {
     background: $surface;
@@ -275,8 +351,13 @@ QMessageBox QLabel {
 )
 
 
-def build_stylesheet(t: Tokens) -> str:
-    """Return the full QSS for one palette."""
+def build_stylesheet(t: Tokens, combo_arrow: str | None = None) -> str:
+    """Return the full QSS for one palette.
+
+    ``combo_arrow`` is the path of a recoloured chevron SVG for dropdowns
+    (QSS can only load images from files). Without it Qt draws its own.
+    """
     values: dict[str, str] = {name: getattr(t, name) for name in t.__dataclass_fields__ if name != "name"}
     values.update(derived_colors(t))
+    values["combo_arrow"] = f'image: url("{combo_arrow}");' if combo_arrow else ""
     return _TEMPLATE.substitute(values)

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QStackedWidget, QWidget
 
 from docly import config
 from docly.logger import get_logger
+from docly.presets import PresetLoadResult
 from docly.ui.about_dialog import AboutDialog
 from docly.ui.icons import make_icon
 from docly.ui.pages.base_page import BasePage
@@ -27,7 +28,12 @@ PAGE_CLASSES: tuple[type[BasePage], ...] = (PhotoPage, SignaturePage, PdfPage, B
 class MainWindow(QMainWindow):
     """Top-level window that hosts the sidebar and the page stack."""
 
-    def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        theme: ThemeManager,
+        presets: PresetLoadResult | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.theme = theme
         self.setWindowTitle(config.APP_NAME)
@@ -42,7 +48,9 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
         self.setCentralWidget(root)
 
-        self.pages: list[BasePage] = [cls(theme) for cls in PAGE_CLASSES]
+        self.pages: list[BasePage] = [
+            PhotoPage(theme, presets) if cls is PhotoPage else cls(theme) for cls in PAGE_CLASSES
+        ]
         self.sidebar = Sidebar([NavItem(p.PAGE_ID, p.TITLE, p.ICON) for p in self.pages], theme)
         self.stack = QStackedWidget()
         self.stack.setObjectName("PageStack")
