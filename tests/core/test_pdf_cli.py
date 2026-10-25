@@ -98,3 +98,23 @@ def test_compress_reports_best_and_needs_a_limit(form: Path, capsys) -> None:
     assert "smallest readable version" in capsys.readouterr().out
     assert main(["compress", str(form)]) == 2
     assert "--kb" in capsys.readouterr().out
+
+
+def test_fill(form: Path, tmp_path: Path) -> None:
+    sign = images.save(images.signature_like(300, 100), tmp_path / "sign.png", "PNG")
+    code = main([
+        "fill", str(form), "--text", "1", "72", "100", "Name\\nLine two", "--date", "1", "400", "100",
+        "--tick", "2", "50", "50", "--cross", "2", "80", "50", "--sign", str(sign), "1", "380", "700", "150",
+        "--cover", "1", "10", "10", "40", "20", "--blue", "--size", "11",
+    ])  # fmt: skip
+    assert code == 0
+    saved = tmp_path / "Docly_Output" / "form_signed.pdf"
+    assert pdfs.labels_of(saved.read_bytes()) == ["f1", "f2", "f3", "f4"]
+
+
+def test_fill_reports_bad_input(form: Path, capsys) -> None:
+    assert main(["fill", str(form), "--text", "1", "x", "10", "hi"]) == 2
+    assert "isn't a number" in capsys.readouterr().out
+    assert main(["fill", str(form), "--text", "1", "10", "10", "₹"]) == 2
+    assert "can't be printed" in capsys.readouterr().out
+    assert main(["fill", str(form)]) == 2

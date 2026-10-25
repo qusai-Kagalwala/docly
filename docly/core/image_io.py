@@ -51,7 +51,7 @@ WHITE = (255, 255, 255)
 class LoadedImage:
     """A decoded image ready for processing, plus facts about the original."""
 
-    image: Image.Image  # always mode "RGB"
+    image: Image.Image  # mode "RGB" (or "RGBA" when loaded with keep_alpha)
     source_format: str  # Pillow name, e.g. "JPEG"
     original_size: tuple[int, int]  # as stored in the file, before rotation
     rotated: bool  # EXIF orientation was applied
@@ -74,8 +74,12 @@ def load_image(path: Path) -> LoadedImage:
     return load_image_bytes(data, path.name)
 
 
-def load_image_bytes(data: bytes, name: str = "image") -> LoadedImage:
-    """Open image bytes safely (same rules as :func:`load_image`)."""
+def load_image_bytes(data: bytes, name: str = "image", keep_alpha: bool = False) -> LoadedImage:
+    """Open image bytes safely (same rules as :func:`load_image`).
+
+    ``keep_alpha=True`` keeps see-through areas (mode ``RGBA``) instead of
+    filling them with white, e.g. for placing a signature on a PDF.
+    """
     if not data:
         raise CorruptImageError(f"{name} is empty (0 bytes).")
     if len(data) > MAX_FILE_BYTES:
@@ -95,7 +99,7 @@ def load_image_bytes(data: bytes, name: str = "image") -> LoadedImage:
 
     image, reduced = _decode(data, fmt, width, height, name)
     image, rotated = _apply_exif_rotation(image, name)
-    rgb = _to_srgb(image)
+    rgb = _to_srgb(image, keep_alpha)
     return LoadedImage(rgb, fmt, (width, height), rotated, reduced, name)
 
 
@@ -162,8 +166,8 @@ def _apply_exif_rotation(image: Image.Image, name: str) -> tuple[Image.Image, bo
     return (rotated if rotated is not None else image), True
 
 
-def _to_srgb(image: Image.Image) -> Image.Image:
-    """Convert any mode to plain RGB; transparency becomes white."""
+def _to_srgb(image: Image.Image, keep_alpha: bool = False) -> Image.Image:
+    """Convert any mode to plain RGB; transparency becomes white (or is kept as RGBA)."""
     icc = image.info.get("icc_profile")
     mode = image.mode
 
@@ -179,6 +183,10 @@ def _to_srgb(image: Image.Image) -> Image.Image:
     elif mode in ("LA", "La", "PA", "RGBa"):
         image = image.convert("RGBA")
 
+    alpha: Image.Image | None = None
+    if image.mode == "RGBA" and keep_alpha and image.getchannel("A").getextrema()[0] < 255:
+        alpha = image.getchannel("A")
+        image = image.convert("RGB")
     if image.mode == "RGBA":
         background = Image.new("RGB", image.size, WHITE)
         background.paste(image, mask=image.getchannel("A"))
@@ -188,6 +196,8 @@ def _to_srgb(image: Image.Image) -> Image.Image:
         image = _icc_to_srgb(image, icc)
     if image.mode != "RGB":
         image = image.convert("RGB")
+    if alpha is not None:
+        image.putalpha(alpha)
     return image
 
 

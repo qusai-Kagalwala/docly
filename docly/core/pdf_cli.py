@@ -8,6 +8,11 @@
     python -m docly.core.pdf_cli split    form.pdf --ranges "1-2, 3-"
     python -m docly.core.pdf_cli split    form.pdf --every 1
     python -m docly.core.pdf_cli compress scan.pdf --kb 500 [--min-kb 50] [--grayscale]
+    python -m docly.core.pdf_cli fill     form.pdf --text 1 72 700 "Qusai K" --date 1 400 700 \
+                                          --tick 1 60 300 --sign sign.png 1 380 740 150 --blue
+
+Fill positions are in points (72 per inch) from the page's top-left corner as
+you see it; A4 is 595 × 842. Page numbers start at 1.
 
 Results go into ``Docly_Output`` next to the first input (or ``--out``);
 nothing is ever overwritten. Password-protected PDFs prompt for the password.
@@ -24,7 +29,22 @@ from pathlib import Path
 from docly.core.errors import DoclyError, InvalidPageRangeError, PasswordRequiredError, WrongPasswordError
 from docly.core.files import write_new_file
 from docly.core.image_pdf import PageSize
+from docly.core.files import read_bytes
+from docly.core.image_io import MAX_FILE_BYTES
 from docly.core.pdf_compress import apply_to_result
+from docly.core.pdf_fill import (
+    BLACK,
+    BLUE_INK,
+    DATE_FORMATS,
+    FillItem,
+    ItemKind,
+    cover_item,
+    date_item,
+    fill_pdf,
+    image_item,
+    mark_item,
+    text_item,
+)
 from docly.core.pdf_ops import (
     PdfResult,
     Source,
@@ -87,6 +107,16 @@ def _parser() -> argparse.ArgumentParser:
     compress_cmd.add_argument("--kb", type=float, help="largest allowed size in KB (1 KB = 1000 bytes, the safe reading)")
     compress_cmd.add_argument("--min-kb", type=float, help="smallest allowed size in KB, if the portal has one")
     compress_cmd.add_argument("--grayscale", action="store_true", help="turn pictures grey")
+    fill_cmd = add("fill", "add text, dates, ticks, a signature or cover-up boxes")
+    fill_cmd.add_argument("--text", nargs=4, action="append", default=[], metavar=("PAGE", "X", "Y", "TEXT"))
+    fill_cmd.add_argument("--date", nargs=3, action="append", default=[], metavar=("PAGE", "X", "Y"))
+    fill_cmd.add_argument("--date-format", default="DD/MM/YYYY", choices=list(DATE_FORMATS))
+    fill_cmd.add_argument("--tick", nargs=3, action="append", default=[], metavar=("PAGE", "X", "Y"))
+    fill_cmd.add_argument("--cross", nargs=3, action="append", default=[], metavar=("PAGE", "X", "Y"))
+    fill_cmd.add_argument("--sign", nargs=5, action="append", default=[], metavar=("IMAGE", "PAGE", "X", "Y", "WIDTH"))
+    fill_cmd.add_argument("--cover", nargs=5, action="append", default=[], metavar=("PAGE", "X", "Y", "W", "H"))
+    fill_cmd.add_argument("--size", type=float, default=12.0, help="text size in points (default 12)")
+    fill_cmd.add_argument("--blue", action="store_true", help="blue ink instead of black")
     return parser
 
 
@@ -137,9 +167,38 @@ def _run(args: argparse.Namespace, sources: list[Source]) -> list[PdfResult]:
         if result.met_target is False:
             print(f"Couldn't reach {args.kb:g} KB; this is the smallest readable version.")
         return [result]
+    if args.command == "fill":
+        return [fill_pdf(source, _fill_items(args))]
     if args.ranges:
         return split_by_ranges(source, args.ranges)
     return split_every(source, args.every)
+
+
+def _fill_items(args: argparse.Namespace) -> list[FillItem]:
+    def num(value: str) -> float:
+        try:
+            return float(value)
+        except ValueError:
+            raise InvalidPageRangeError(f"{value!r} isn't a number.") from None
+
+    def page(value: str) -> int:
+        return int(num(value)) - 1  # people count pages from 1
+
+    colour = BLUE_INK if args.blue else BLACK
+    items: list[FillItem] = []
+    for p, x, y, text in args.text:
+        items.append(text_item(page(p), num(x), num(y), text.replace("\\n", "\n"), args.size, colour))
+    for p, x, y in args.date:
+        items.append(date_item(page(p), num(x), num(y), style=args.date_format, font_size=args.size, colour=colour))
+    for kind, entries in ((ItemKind.TICK, args.tick), (ItemKind.CROSS, args.cross)):
+        for p, x, y in entries:
+            items.append(mark_item(kind, page(p), num(x), num(y), args.size * 1.2, colour))
+    for image, p, x, y, width in args.sign:
+        data = read_bytes(Path(image), MAX_FILE_BYTES)
+        items.append(image_item(page(p), num(x), num(y), data, num(width)))
+    for p, x, y, w, h in args.cover:
+        items.append(cover_item(page(p), num(x), num(y), num(w), num(h)))
+    return items
 
 
 def _print_info(source: Source) -> None:
