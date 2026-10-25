@@ -172,11 +172,10 @@ def main(argv: list[str] | None = None) -> int:
     shutil.copyfile(store_package, test_package)
     run([tools["signtool"], "sign", "/fd", "SHA256", "/f", pfx, "/p", CERT_PASSWORD, test_package])
     print(f"""     {test_package.relative_to(ROOT)}
-To install it on this PC (once per certificate):
-  1. Double-click {cer.relative_to(ROOT)} > Install Certificate > Local Machine >
-     "Place all certificates in the following store" > Browse > Trusted People > Finish.
-  2. Double-click {test_package.name} > Install.
-Remove it later from Settings > Apps, and delete the certificate with certlm.msc.""")
+To install it on this PC, see packaging/README.md step 3. In short, in PowerShell run as administrator:
+  Import-Certificate -FilePath {cer.relative_to(ROOT)} -CertStoreLocation Cert:\\LocalMachine\\Root
+  Import-Certificate -FilePath {cer.relative_to(ROOT)} -CertStoreLocation Cert:\\LocalMachine\\TrustedPeople
+then double-click {test_package.name} > Install. Remove the certificate when you've finished testing.""")
     return 0
 
 

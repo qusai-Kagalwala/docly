@@ -34,10 +34,28 @@ if Partner Center changes.
 
 ## 3. Install the test package
 
-1. Double-click `build/cert/docly-test.cer` > Install Certificate > Local Machine >
-   "Place all certificates in the following store" > Browse > **Trusted People** > Finish.
-   (Once per certificate; needs administrator rights.)
-2. Double-click `dist/Docly-<version>-test.msix` > Install.
+The test certificate is self-signed, so Windows must trust it as a root
+(Trusted People alone gives error 0x800B0109). Open **PowerShell as
+administrator** in the project folder:
+
+```powershell
+Import-Certificate -FilePath build\cert\docly-test.cer -CertStoreLocation Cert:\LocalMachine\Root
+Import-Certificate -FilePath build\cert\docly-test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+Click **Yes** if Windows warns about installing a root certificate. Then
+double-click `dist/Docly-<version>-test.msix` > **Install**.
+
+When you've finished testing, remove the certificate again (same admin
+PowerShell). The installed app keeps working; only new test installs need it.
+
+```powershell
+Get-ChildItem Cert:\LocalMachine\Root, Cert:\LocalMachine\TrustedPeople, Cert:\CurrentUser\My |
+  Where-Object Subject -eq "CN=775C1D17-053C-4160-976D-B6782AF2C690" | Remove-Item
+```
+
+The Store package is signed by Microsoft, so people installing from the
+Store never need any of this.
 
 ## 4. Test checklist
 
