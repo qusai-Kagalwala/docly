@@ -39,6 +39,7 @@ KNOWN_FIELDS = frozenset(
         "width_px", "height_px", "min_width_px", "max_width_px",
         "min_height_px", "max_height_px", "aspect_ratio", "dpi",
         "kb_min", "kb_max", "notes", "source", "last_verified", "verified", "tags",
+        "no_edits",
     }
 )  # fmt: skip
 
@@ -306,6 +307,10 @@ def _parse_entry(
     if not isinstance(verified, bool):
         e.error("verified", "Must be true or false.")
         verified = False
+    no_edits = entry.get("no_edits", False)
+    if not isinstance(no_edits, bool):
+        e.error("no_edits", "Must be true or false.")
+        no_edits = False
 
     # --- cross-field rules ----------------------------------------------
     if kind is not None and formats:
@@ -343,6 +348,7 @@ def _parse_entry(
         source=source,
         last_verified=last_verified,
         verified=verified,
+        no_edits=no_edits,
         tags=tags,
         origin=origin,
         **limits,

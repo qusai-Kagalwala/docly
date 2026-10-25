@@ -1,0 +1,15 @@
+modnet_512.onnx — portrait matting model used by Docly's photo background tool
+
+Model:     MODNet: Real-Time Trimap-Free Portrait Matting via Objective Decomposition
+Authors:   Zhanghan Ke, Jiayu Sun, Kaican Li, Qiong Yan, Rynson W.H. Lau
+Project:   https://github.com/ZHKKKe/MODNet
+Licence:   Apache License 2.0 (full text in LICENSE-modnet.txt)
+
+ONNX export: https://huggingface.co/Xenova/modnet (onnx/model.onnx, Apache-2.0)
+             SHA-256 07c308cf0fc7e6e8b2065a12ed7fc07e1de8febb7dc7839d7b7f15dd66584df9
+
+Changes made for Docly (Apache-2.0 §4b):
+  The input was fixed to 1 × 3 × 512 × 512 and the graph simplified with
+  onnx-simplifier, so that OpenCV 4.10+ can run it. Weights are unchanged.
+  Reproduce with: python tools/make_background_model.py path/to/model.onnx
+  Result SHA-256 bb917858a2daea3eebefc2d30aab45fc67979f4123ab9f215eb02df7cbcf5ed1

@@ -115,3 +115,33 @@ def test_dropping_a_document_on_the_page(page: PhotoPage) -> None:
 
 def test_main_window_uses_real_photo_page(main_window) -> None:
     assert isinstance(main_window.page("photo"), PhotoPage)
+
+
+# ----------------------------------------------------------------------
+# Background colour (Phase 9) — uses the real bundled model
+# ----------------------------------------------------------------------
+def test_background_colour_end_to_end(qtbot, page: PhotoPage, photo_file: Path) -> None:
+    page.picker.select("in-ibps-photo")
+    page.load_file(photo_file)
+    wait_for_result(qtbot, page)
+    assert page.crop_view.showing_original
+    started: list[bool] = []
+    page.processor.started.connect(lambda: started.append(True))
+    page.background_card.select("light_blue")
+    qtbot.waitUntil(lambda: bool(started), timeout=TIMEOUT)
+    wait_for_result(qtbot, page)
+    qtbot.waitUntil(lambda: not page.crop_view.showing_original, timeout=TIMEOUT)  # live preview
+    assert any("Background replaced" in note for note in page.result_card.notes.text().splitlines())
+    page.background_card.select("keep")
+    qtbot.waitUntil(lambda: page.crop_view.showing_original, timeout=TIMEOUT)
+
+
+def test_strict_preset_never_edits(qtbot, page: PhotoPage, photo_file: Path) -> None:
+    page.picker.show_all.setChecked(True)
+    page.picker.select("us-visa-photo")
+    page.background_card.select("white")
+    assert page.background_card.blocked and page.job_settings() is None
+    page.load_file(photo_file)
+    qtbot.waitUntil(lambda: page.result_card.save_button.isEnabled(), timeout=TIMEOUT)
+    assert page.crop_view.showing_original
+    assert "Background replaced" not in page.result_card.notes.text()

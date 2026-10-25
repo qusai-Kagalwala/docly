@@ -64,3 +64,11 @@ class CancelledError(DoclyError):
 
     def __init__(self, message: str = "Cancelled.") -> None:
         super().__init__(message)
+
+
+class ModelMissingError(DoclyError):
+    """A bundled AI model file is missing or damaged (reinstalling fixes it)."""
+
+
+class EditsNotAllowedError(DoclyError):
+    """The preset's authority doesn't accept digitally edited photos."""

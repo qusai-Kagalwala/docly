@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QLabel, QWidget
 
+from docly.core.background import BackgroundOptions, model_available
 from docly.core.compress import CancelCheck
 from docly.core.image_io import LoadedImage
 from docly.core.pipeline import ProcessResult, process_loaded
@@ -12,6 +14,7 @@ from docly.core.resize import CropBox
 from docly.presets.models import Preset, PresetKind
 from docly.ui.pages.image_tool_page import ImageToolPage, make_display_image
 from docly.ui.theme import ThemeManager
+from docly.ui.widgets.background_card import BackgroundCard
 from docly.ui.widgets.card import Card
 
 NO_CROP_HINT = "This preset keeps the whole photo, so there's no crop frame."
@@ -38,10 +41,41 @@ class PhotoPage(ImageToolPage):
         self.crop_card.body.addWidget(self.crop_hint)
         return self.crop_card
 
+    def build_settings(self, theme: ThemeManager) -> QWidget:
+        self.background_card = BackgroundCard(theme, available=model_available())
+        self.background_card.changed.connect(self._on_background_changed)
+        return self.background_card
+
+    def job_settings(self) -> BackgroundOptions | None:
+        return self.background_card.options()
+
     def run(
         self, loaded: LoadedImage, preset: Preset, crop: CropBox | None, settings: object, cancel: CancelCheck
     ) -> ProcessResult:
-        return process_loaded(loaded, preset, crop, cancel=cancel)
+        background = settings if isinstance(settings, BackgroundOptions) else None
+        return process_loaded(
+            loaded, preset, crop, cancel=cancel, background=background, want_preview=background is not None
+        )
+
+    def on_preset_changed(self, preset: Preset | None) -> None:
+        self.background_card.set_preset(preset)
+        if self.background_card.options() is None:
+            self.crop_view.set_pixels(None)
+
+    def on_result(self, result: ProcessResult) -> None:
+        # Show the new background in the crop view too (or the original again).
+        self.crop_view.set_pixels(_to_qimage(result.preview) if result.preview is not None else None)
 
     def update_controls(self, has_image: bool) -> None:
         self.crop_hint.setVisible(has_image and not self.crop_view.has_crop)
+
+    def _on_background_changed(self) -> None:
+        if self.background_card.options() is None:
+            self.crop_view.set_pixels(None)
+        self.schedule()
+
+
+def _to_qimage(image) -> QImage:  # PIL.Image.Image -> QImage (owning its pixels)
+    rgb = image.convert("RGB")
+    data = rgb.tobytes("raw", "RGB")
+    return QImage(data, rgb.width, rgb.height, rgb.width * 3, QImage.Format.Format_RGB888).copy()

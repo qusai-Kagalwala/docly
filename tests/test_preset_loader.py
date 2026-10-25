@@ -218,6 +218,7 @@ def test_required_fields(missing: str) -> None:
         ({"source": "not a url"}, "source"),
         ({"last_verified": "24/10/2026"}, "last_verified"),
         ({"verified": "yes"}, "verified"),
+        ({"no_edits": "yes"}, "no_edits"),
     ],
 )
 def test_invalid_values_are_rejected(changes: dict, field: str) -> None:

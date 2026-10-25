@@ -106,6 +106,17 @@ def pad_to_ratio(image: Image.Image, ratio: float, fill: tuple[int, int, int] = 
     return canvas
 
 
+def crop_box_for(
+    size: tuple[int, int], preset: Preset, crop: CropBox | None = None, mode: str = "crop"
+) -> CropBox | None:
+    """The area of a ``size`` image that :func:`fit_to_preset` keeps (None = all of it)."""
+    width, height = size
+    box: CropBox | None = clamp_crop(crop, width, height) if crop is not None else None
+    if mode == "crop" and preset.ratio is not None:
+        box = fit_crop_to_ratio(box, preset.ratio) if box else centered_crop(width, height, preset.ratio)
+    return box
+
+
 def fit_to_preset(
     image: Image.Image,
     preset: Preset,
@@ -124,11 +135,7 @@ def fit_to_preset(
     width, height = image.size
     ratio = preset.ratio
 
-    box: CropBox | None = None
-    if crop is not None:
-        box = clamp_crop(crop, width, height)
-    if mode == "crop" and ratio is not None:
-        box = fit_crop_to_ratio(box, ratio) if box else centered_crop(width, height, ratio)
+    box = crop_box_for(image.size, preset, crop, mode)
     if box is not None and box != CropBox(0, 0, width, height):
         result.image = image.crop(box.as_pil())
         result.cropped = True

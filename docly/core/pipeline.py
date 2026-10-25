@@ -16,11 +16,15 @@ import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from PIL import Image
+
+from docly.core.background import BackgroundOptions, Segmenter, default_segmenter, matte_for, replace_background
+from docly.core.background import preview as background_preview
 from docly.core.compress import CancelCheck, CompressResult, compress_to_target
-from docly.core.errors import DoclyError
+from docly.core.errors import CancelledError, DoclyError, EditsNotAllowedError
 from docly.core.files import safe_stem, write_new_file
 from docly.core.image_io import LoadedImage, load_image
-from docly.core.resize import CropBox, FitResult, fit_to_preset, pad_to_ratio
+from docly.core.resize import CropBox, FitResult, crop_box_for, fit_to_preset, pad_to_ratio
 from docly.core.signature import CleanOptions, clean_signature, thicken_for_scale
 from docly.core.validate import ValidationReport, validate_bytes
 from docly.presets.models import FileFormat, Preset, PresetKind
@@ -37,6 +41,8 @@ class ProcessResult:
     source: LoadedImage
     suggested_name: str
     notes: list[str] = field(default_factory=list)
+    #: Whole photo with the new background, screen-sized (only when asked for).
+    preview: Image.Image | None = None
 
     @property
     def passed(self) -> bool:
@@ -83,13 +89,39 @@ def process_loaded(
     crop: CropBox | None = None,
     fmt: FileFormat | None = None,
     cancel: CancelCheck | None = None,
+    background: BackgroundOptions | None = None,
+    segmenter: Segmenter | None = None,
+    want_preview: bool = False,
 ) -> ProcessResult:
     """Same as :func:`process_image` for an image that is already loaded
-    (the Photo page loads once and re-runs this when the crop changes)."""
+    (the Photo page loads once and re-runs this when the crop changes).
+
+    ``background`` replaces what's behind the person before cropping and
+    resizing. It raises :class:`EditsNotAllowedError` for presets whose
+    authority forbids edited photos. ``want_preview`` adds a screen-sized
+    copy of the whole photo with the new background.
+    """
     _require_image_preset(preset)
     notes = _load_notes(loaded)
-    fitted = fit_to_preset(loaded.image, preset, crop)
-    return _finish(loaded, preset, fitted, fmt, cancel, notes)
+    if background is None:
+        return _finish(loaded, preset, fit_to_preset(loaded.image, preset, crop), fmt, cancel, notes)
+
+    if preset.no_edits:
+        raise EditsNotAllowedError(
+            f"{preset.name}: this authority doesn't accept edited photos, so Docly won't change the "
+            "background. Take the photo against a plain white or off-white wall instead."
+        )
+    matte = matte_for(loaded.image, segmenter or default_segmenter(), cancel)
+    if cancel is not None and cancel():
+        raise CancelledError()
+    box = crop_box_for(loaded.image.size, preset, crop)
+    replaced = replace_background(loaded.image, matte, background, box)
+    fitted = fit_to_preset(replaced, preset)  # already cropped to the preset's shape
+    notes.append("Background replaced. Check the edges around hair before uploading.")
+    result = _finish(loaded, preset, fitted, fmt, cancel, notes)
+    if want_preview:
+        result.preview = background_preview(loaded.image, matte, background)
+    return result
 
 
 def process_signature(

@@ -123,11 +123,12 @@ class MainWindow(QMainWindow):
                 "1. Choose your portal",
                 "Search for your exam, visa or form. Docly then knows the exact pixels, shape and KB limit.",
                 lambda: [photo.picker.parentWidget()],
-                lambda: go("photo"),
+                lambda: (go("photo"), photo.side_scroll.ensureWidgetVisible(photo.picker.parentWidget())),
             ),
             TourStep(
                 "2. Drop your photo",
-                "Drag a photo here or click to browse. Then drag the frame to crop. Your original is never changed.",
+                "Drag a photo here or click to browse, then drag the frame to crop. Need a white or light-blue "
+                "background? Pick it under Background. Your original is never changed.",
                 lambda: [photo.stack],
                 lambda: go("photo"),
             ),
@@ -135,7 +136,7 @@ class MainWindow(QMainWindow):
                 "3. Check and save",
                 "✅ means every rule is met. Save puts the result in a Docly_Output folder next to your photo.",
                 lambda: [photo.result_card],
-                lambda: go("photo"),
+                lambda: (go("photo"), photo.side_scroll.ensureWidgetVisible(photo.result_card)),
             ),
             TourStep(
                 "Signatures",

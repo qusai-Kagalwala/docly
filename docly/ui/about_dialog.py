@@ -80,7 +80,10 @@ class AboutDialog(QDialog):
         made.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card.body.addWidget(made)
 
-        credits = QLabel(f"Released under the {config.APP_LICENSE} licence · Icons by Lucide (ISC)")
+        credits = QLabel(
+            f"Released under the {config.APP_LICENSE} licence · Icons by Lucide (ISC) · "
+            "Portrait model MODNet (Apache-2.0)"
+        )
         credits.setProperty("role", "caption")
         credits.setAlignment(Qt.AlignmentFlag.AlignCenter)
         credits.setWordWrap(True)

@@ -51,3 +51,8 @@ def test_both_universal_and_india_packs_present() -> None:
     regions = {p.region for p in PRESETS}
     assert {"INTL", "IN"} <= regions
     assert any(p.kind.value == "document" for p in PRESETS if p.region == "INTL")
+
+
+def test_authorities_that_forbid_edits_are_marked() -> None:
+    strict = {p.id for p in PRESETS if p.no_edits}
+    assert strict == {"us-visa-photo", "gb-passport-photo-online"}

@@ -105,6 +105,8 @@ class Preset:
     source: str = ""
     last_verified: date | None = None
     verified: bool = False
+    #: The authority forbids digital edits (e.g. replacing the background).
+    no_edits: bool = False
     tags: tuple[str, ...] = field(default_factory=tuple)
     origin: str = "bundled"  # "bundled" or "user"
 

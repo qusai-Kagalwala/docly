@@ -119,6 +119,7 @@
       "source": "https://travel.state.gov/content/travel/en/us-visas/visa-information-resources/photos/digital-image-requirements.html",
       "last_verified": null,
       "verified": false,
+      "no_edits": true,
       "tags": ["visa", "ds-160", "usa", "america"]
     },
     {
@@ -139,6 +140,7 @@
       "source": "https://www.gov.uk/photos-for-passports",
       "last_verified": null,
       "verified": false,
+      "no_edits": true,
       "tags": ["passport", "uk", "britain", "hmpo"]
     },
     {

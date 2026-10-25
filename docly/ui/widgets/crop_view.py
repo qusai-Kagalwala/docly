@@ -65,6 +65,7 @@ class CropView(QWidget):
         theme.themeChanged.connect(self._apply_tokens)
 
         self._image: QImage | None = None
+        self._original: QImage | None = None
         self._full_size: tuple[int, int] = (0, 0)
         self._ratio: float | None = None
         self._free = False
@@ -78,11 +79,25 @@ class CropView(QWidget):
     def set_image(self, image: QImage, full_size: tuple[int, int], ratio: float | None) -> None:
         """Show ``image`` (a display copy of a ``full_size`` photo)."""
         self._image = image
+        self._original = image
         self._full_size = full_size
         self.set_ratio(ratio)
 
+    def set_pixels(self, image: QImage | None) -> None:
+        """Show different pixels for the same photo (e.g. with a new background),
+        keeping the crop frame. ``None`` goes back to the original."""
+        if self._image is None:
+            return
+        self._image = image if image is not None else self._original
+        self.update()
+
+    @property
+    def showing_original(self) -> bool:
+        return self._image is self._original
+
     def clear(self) -> None:
         self._image = None
+        self._original = None
         self._box = QRectF()
         self.update()
 
