@@ -95,3 +95,24 @@ def test_cancelled_picker_emits_nothing(qtbot, theme_manager, monkeypatch) -> No
     qtbot.addWidget(zone)
     with qtbot.assertNotEmitted(zone.fileChosen):
         zone.browse()
+
+
+def test_multiple_mode_emits_every_dropped_file(qtbot, theme_manager, tmp_path: Path) -> None:
+    zone = DropZone(theme_manager, multiple=True, title="Drop PDFs here", icon="file-text")
+    qtbot.addWidget(zone)
+    mime = mime_for(tmp_path / "a.pdf", tmp_path / "b.jpg", "https://example.org/c.pdf")
+    drop = QDropEvent(QPointF(5, 5), Qt.DropAction.CopyAction, mime, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
+    with qtbot.waitSignal(zone.filesChosen, timeout=1000) as blocker:
+        zone.dropEvent(drop)
+    assert blocker.args[0] == [tmp_path / "a.pdf", tmp_path / "b.jpg"]  # web links ignored
+    assert zone.accessibleName() == "Drop PDFs here or click to browse"
+
+
+def test_multiple_mode_picker(qtbot, theme_manager, monkeypatch, tmp_path: Path) -> None:
+    chosen = [tmp_path / "a.pdf", tmp_path / "b.pdf"]
+    monkeypatch.setattr(drop_zone, "ask_open_files", lambda parent, title, flt, start="": chosen)
+    zone = DropZone(theme_manager, multiple=True)
+    qtbot.addWidget(zone)
+    with qtbot.waitSignal(zone.filesChosen, timeout=1000) as blocker:
+        zone.browse()
+    assert blocker.args[0] == chosen

@@ -40,6 +40,8 @@ class Source:
     name: str
     pdf: OpenedPdf | None = None  # set for PDF sources
     image_data: bytes | None = None  # set for image sources
+    data: bytes = b""  # the file as read (for page previews)
+    password: str | None = field(default=None, repr=False)  # kept in memory only, never logged
 
     @property
     def is_pdf(self) -> bool:
@@ -89,9 +91,10 @@ def load_source(path: Path, password: str | None = None) -> Source:
     path = Path(path)
     data = read_bytes(path, max(MAX_FILE_BYTES, 200 * 1024 * 1024))
     if is_pdf(data):
-        return Source(path, path.name, pdf=open_pdf_bytes(data, path.name, password))
+        opened = open_pdf_bytes(data, path.name, password)
+        return Source(path, path.name, pdf=opened, data=data, password=password if opened.encrypted else None)
     load_image_bytes(data, path.name)  # validate now so errors appear when adding the file
-    return Source(path, path.name, image_data=data)
+    return Source(path, path.name, image_data=data, data=data)
 
 
 def close_all(sources: Sequence[Source]) -> None:
@@ -153,6 +156,41 @@ def build_pdf(
     data = save_pdf(out)
     out.close()
     return PdfResult(data, total, suggested_name, warnings)
+
+
+def suggest_name(sources: Sequence[Source], plan: Sequence[PageRef]) -> str:
+    """A sensible output name for an arranged plan.
+
+    One untouched source keeps its name; one edited source gets
+    ``_edited``; several sources get ``_merged`` after the name of the file
+    the first page comes from.
+    """
+    used = list(dict.fromkeys(ref.source for ref in plan))  # in order of first page
+    if not used:
+        return "document.pdf"
+    first = _stem(sources[used[0]])
+    if len(used) > 1:
+        return f"{first}_merged.pdf"
+    source = sources[used[0]]
+    untouched = list(plan) == [PageRef(used[0], i) for i in range(source.page_count)]
+    if untouched and source.is_pdf:
+        return f"{first}.pdf"
+    return f"{first}_edited.pdf" if source.is_pdf else f"{first}.pdf"
+
+
+def split_plan(
+    sources: Sequence[Source],
+    plan: Sequence[PageRef],
+    groups: Sequence[Sequence[int]],
+    base_name: str,
+    **kwargs,
+) -> list[PdfResult]:
+    """Build one PDF per group of *positions in the plan* (0-based)."""
+    stem = base_name[:-4] if base_name.lower().endswith(".pdf") else base_name
+    return [
+        build_pdf(sources, [plan[i] for i in group], f"{stem}_pages-{_label(group)}.pdf", **kwargs)
+        for group in groups
+    ]
 
 
 # ----------------------------------------------------------------------

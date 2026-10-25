@@ -50,9 +50,10 @@ def test_pypdf_is_not_used() -> None:
         assert "pypdf" not in path.read_text(encoding="utf-8"), path
 
 
-def test_signature_page_loads_opencv_on_startup_thread() -> None:
-    """Importing the UI must load cv2 up front (never first on a worker thread)."""
-    code = "import sys, docly.ui.main_window; print('cv2' in sys.modules)"
+@pytest.mark.parametrize("module", ["cv2", "pikepdf", "PySide6.QtPdf"])
+def test_engine_libraries_load_on_startup_thread(module: str) -> None:
+    """Importing the UI must load these up front, never first on a worker thread."""
+    code = f"import sys, docly.ui.main_window; print({module!r} in sys.modules)"
     output = subprocess.run(
         [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True,
         env={**__import__("os").environ, "QT_QPA_PLATFORM": "offscreen"},

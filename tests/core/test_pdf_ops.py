@@ -21,6 +21,8 @@ from docly.core.pdf_ops import (
     rotate,
     split_by_ranges,
     split_every,
+    split_plan,
+    suggest_name,
 )
 from tests.core import images, pdfs
 
@@ -158,3 +160,31 @@ def test_non_pdf_non_image_source(tmp_path: Path) -> None:
 def test_close_all(form, cert) -> None:
     close_all([form, cert])  # closing twice must be harmless
     close_all([form, cert])
+
+
+def test_suggest_name(form, cert, tmp_path: Path) -> None:
+    photo = load_source(images.save(images.photo_like(300, 200), tmp_path / "id card.jpg"))
+    assert suggest_name([form], [PageRef(0, i) for i in range(5)]) == "form.pdf"
+    assert suggest_name([form], [PageRef(0, 0, 90)] + [PageRef(0, i) for i in range(1, 5)]) == "form_edited.pdf"
+    assert suggest_name([form, cert], [PageRef(1, 0), PageRef(0, 0)]) == "cert_merged.pdf"
+    assert suggest_name([form, cert, photo], [PageRef(2, 0)]) == "id card.pdf"
+    assert suggest_name([form], []) == "document.pdf"
+
+
+def test_split_plan_uses_plan_positions(form, cert) -> None:
+    plan = [PageRef(1, 0), PageRef(0, 4, 90), PageRef(0, 0)]
+    parts = split_plan([form, cert], plan, [[0, 1], [2]], "mix.pdf")
+    assert [pdfs.labels_of(p.data) for p in parts] == [["c1", "f5"], ["f1"]]
+    assert pdfs.rotations_of(parts[0].data) == [0, 90]
+    assert [p.suggested_name for p in parts] == ["mix_pages-1-2.pdf", "mix_pages-3.pdf"]
+
+
+@pytest.mark.filterwarnings("ignore:A password was provided")
+def test_source_keeps_data_and_password(tmp_path: Path) -> None:
+    path = pdfs.write_pdf(tmp_path / "locked.pdf", ["a"], password="pw")
+    source = load_source(path, password="pw")
+    assert source.data == path.read_bytes()
+    assert source.password == "pw"
+    assert "pw" not in repr(source)  # never shows up in logs
+    plain = load_source(pdfs.write_pdf(tmp_path / "open.pdf", ["a"]), password="ignored")
+    assert plain.password is None
