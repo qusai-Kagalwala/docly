@@ -17,6 +17,7 @@ from docly.ui.theme import ThemeMode
 log = get_logger(__name__)
 
 KEY_THEME = "appearance/theme"
+KEY_TOUR_SEEN = "onboarding/tour_seen"
 
 
 class SettingsStore:
@@ -46,3 +47,12 @@ class SettingsStore:
         self._settings.sync()
         if self._settings.status() != QSettings.Status.NoError:
             log.warning("Could not save settings to %s", self.path)
+
+    def tour_seen(self) -> bool:
+        """True once the first-run tour was finished or skipped."""
+        value = self._settings.value(KEY_TOUR_SEEN, False)
+        return value is True or (isinstance(value, str) and value.lower() == "true")
+
+    def set_tour_seen(self, seen: bool = True) -> None:
+        self._settings.setValue(KEY_TOUR_SEEN, "true" if seen else "false")
+        self._settings.sync()

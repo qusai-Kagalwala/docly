@@ -153,6 +153,11 @@ class ThemeManager(QObject):
 
     # ----- public API -------------------------------------------------
     @property
+    def store(self) -> SettingsStore:
+        """The settings file this manager saves to (shared with other UI)."""
+        return self._store
+
+    @property
     def mode(self) -> ThemeMode:
         return self._mode
 

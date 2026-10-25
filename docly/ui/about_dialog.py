@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from docly import config
@@ -12,7 +12,13 @@ from docly.ui.widgets.card import Card
 
 
 class AboutDialog(QDialog):
-    """Name, version, licence and the offline promise."""
+    """Name, version, creator, licence and the offline promise.
+
+    Signals:
+        tourRequested(): "Take the tour" was clicked.
+    """
+
+    tourRequested = Signal()
 
     def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -69,6 +75,11 @@ class AboutDialog(QDialog):
         self.link_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card.body.addWidget(self.link_label)
 
+        made = QLabel(f"Made by {config.CREATOR_NAME}")
+        made.setProperty("role", "body")
+        made.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        card.body.addWidget(made)
+
         credits = QLabel(f"Released under the {config.APP_LICENSE} licence · Icons by Lucide (ISC)")
         credits.setProperty("role", "caption")
         credits.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -76,6 +87,10 @@ class AboutDialog(QDialog):
         card.body.addWidget(credits)
 
         buttons = QHBoxLayout()
+        self.tour_button = QPushButton("Take the tour")
+        self.tour_button.setObjectName("about_tour")
+        self.tour_button.clicked.connect(self.tourRequested)
+        buttons.addWidget(self.tour_button)
         buttons.addStretch(1)
         self.close_button = QPushButton("Close")
         self.close_button.setObjectName("about_close")

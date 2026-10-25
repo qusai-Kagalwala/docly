@@ -178,6 +178,8 @@ def run(argv: list[str] | None = None) -> int:
     window = MainWindow(theme, presets)
     holder["window"] = window
     window.show()
+    # First launch only: start the tour once the window has appeared.
+    QTimer.singleShot(400, window.maybe_start_tour)
 
     exit_code = app.exec()
     log.info("Exiting with code %s", exit_code)

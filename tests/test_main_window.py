@@ -13,14 +13,14 @@ from docly.ui.main_window import MainWindow
 from docly.ui.settings_store import SettingsStore
 from docly.ui.theme import DARK, LIGHT, ThemeManager, ThemeMode
 
-EXPECTED_PAGES = ["photo", "signature", "pdf", "batch", "settings"]
+EXPECTED_PAGES = ["home", "photo", "signature", "pdf", "batch", "settings"]
 
 
 def test_window_launches(main_window: MainWindow) -> None:
     assert main_window.isVisible()
     assert main_window.windowTitle() == "Docly"
     assert main_window.minimumWidth() >= 1000 and main_window.minimumHeight() >= 650
-    assert main_window.current_page_id() == "photo"
+    assert main_window.current_page_id() == "home"
 
 
 def test_all_pages_load(main_window: MainWindow) -> None:
@@ -42,7 +42,7 @@ def test_sidebar_navigation(main_window: MainWindow, qtbot, index: int, page_id:
 def test_show_page_by_id(main_window: MainWindow) -> None:
     main_window.show_page("settings")
     assert main_window.current_page_id() == "settings"
-    assert main_window.sidebar.nav_buttons[4].isChecked()
+    assert main_window.sidebar.nav_buttons[EXPECTED_PAGES.index("settings")].isChecked()
     with pytest.raises(KeyError):
         main_window.show_page("nope")
 

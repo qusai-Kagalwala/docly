@@ -31,6 +31,11 @@ ICON_NAMES: tuple[str, ...] = (
     "info",
     "chevron-down",
     "chevron-up",
+    # Home page and tour
+    "house",
+    "compass",
+    "star",
+    "arrow-right",
     # PDF page toolbar
     "rotate-ccw",
     "rotate-cw",

@@ -19,6 +19,9 @@ APP_TAGLINE = "Get your documents upload-ready."
 APP_VERSION = __version__
 APP_LICENSE = "MIT"
 REPO_URL = "https://github.com/qusai-Kagalwala/docly"
+CREATOR_NAME = "Qusai Kagalwala"
+CREATOR_GITHUB_URL = "https://github.com/qusai-Kagalwala"
+CREATOR_LINKEDIN_URL = "https://www.linkedin.com/in/qusai-kagalwala/"
 
 WINDOW_MIN_SIZE: tuple[int, int] = (1000, 650)
 WINDOW_DEFAULT_SIZE: tuple[int, int] = (1180, 760)

@@ -114,4 +114,4 @@ def test_dropping_a_document_on_the_page(page: PhotoPage) -> None:
 
 
 def test_main_window_uses_real_photo_page(main_window) -> None:
-    assert isinstance(main_window.pages[0], PhotoPage)
+    assert isinstance(main_window.page("photo"), PhotoPage)

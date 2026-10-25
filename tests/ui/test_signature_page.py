@@ -128,7 +128,7 @@ def test_blank_page_message(qtbot, page: SignaturePage, tmp_path: Path) -> None:
 
 def test_main_window_has_signature_page(main_window) -> None:
     main_window.show_page("signature")
-    assert isinstance(main_window.pages[1], SignaturePage)
+    assert isinstance(main_window.page("signature"), SignaturePage)
 
 
 # ----- transparent option (Phase 5b) ------------------------------------

@@ -190,6 +190,39 @@ QPushButton[variant="primary"]:disabled {
 QPushButton[variant="primary"]:focus {
     border-color: $accent_pressed;
 }
+QPushButton[variant="ghost"] {
+    background: transparent;
+    border-color: transparent;
+    color: $text_muted;
+}
+QPushButton[variant="ghost"]:hover {
+    background: $hover_tint;
+    color: $text;
+}
+
+/* ---------- home page & tour ---------- */
+QFrame#TourBubble {
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: 12px;
+}
+QFrame#Card[feature="true"]:hover {
+    border-color: $accent;
+}
+QLabel#StepNumber {
+    background: $accent_tint;
+    color: $accent_text;
+    border-radius: 14px;
+    font-weight: 700;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+}
+QLabel#HeroTitle {
+    font-size: 22px;
+    font-weight: 600;
+}
 
 /* segmented control (e.g. System / Light / Dark) */
 QFrame#Segmented {
