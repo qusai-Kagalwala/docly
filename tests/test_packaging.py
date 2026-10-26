@@ -178,3 +178,15 @@ def test_missing_notices_file_is_explained(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr(config, "NOTICES_PATH", tmp_path / "nope.txt")
     assert config.REPO_URL in about_dialog.read_notices()
+
+
+def test_exe_manifest_declares_dpi_awareness_and_long_paths() -> None:
+    """The App Cert Kit reads these from Docly.exe itself (Qt only sets DPI awareness at run time)."""
+    import xml.etree.ElementTree as ET
+
+    manifest = ROOT / "packaging" / "docly.exe.manifest"
+    root = ET.parse(manifest).getroot()
+    text = manifest.read_text(encoding="utf-8")
+    assert "PerMonitorV2" in text and "<longPathAware" in text and 'level="asInvoker"' in text
+    assert root.tag.endswith("assembly")
+    assert '"packaging" / "docly.exe.manifest"' in _spec_text()
