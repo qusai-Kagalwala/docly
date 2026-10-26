@@ -22,7 +22,7 @@ next to each one; everything here fits them.
 |---|---|
 | Category | **Productivity** |
 | Subcategory | (none) |
-| Privacy policy URL | Leave empty. Docly collects and sends nothing, so it isn't required. If certification asks for one anyway, we'll publish the short policy below and add the link. |
+| Privacy policy URL | Answer **No** to "Does this product access, collect, or transmit personal information?", then enter https://github.com/qusai-Kagalwala/docly/blob/main/PRIVACY.md (packaged desktop apps always need one because of runFullTrust) |
 | Website | https://github.com/qusai-Kagalwala/docly |
 | Support contact | An email address you're happy to show publicly |
 | System requirements | Minimum: 4 GB memory; 64-bit (x64) |
